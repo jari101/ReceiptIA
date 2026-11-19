@@ -1,2 +1,10 @@
 # ReceiptIA
-uma aplicação movel com um robo fisico aplicavel a uma parede que le recibos e adiciona a uma base de  dados pessoal para guardar os ingrdientes que voce tem e com um botão conseguir criar receitas com os ingredientes que voce terá.
+Uma aplicação movel com:
+<ul>
+  <li>um <b>robo fisico</b> aplicavel a uma parede, e uma <b>aplicação móvel</b> que lé recibos e adiciona a uma base de dados pessoal</li>
+  <li>Na base de dados irá guardar os seus ingredientes e ao detectar que o tempo de validade de certos ingredientes já está fora do praso irá avisar</li>
+  <li>terá um botão que serve para examinar os ingredientes que estão dentro da base de dados e irá devolver receitas que tem na sua base de dados</li>
+  <li>terá um botão para inserir novas receitas a base de dados com ingredientes e passos</li>
+  <li>uma pagina que mostra as coisas compradas mais constantemente, quanto dinheiro foi gastado neste mês(pode ser ajustado para ser por semana ou por ano)</li>
+  <li>uma pagina de registos contendo todas as compras com o seu preço e ao clicar demonstra um drop down menu que mostra todos os items comprados nessa compra.</li>
+</ul>
