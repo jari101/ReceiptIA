@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<title>ReceiptAI — vídeo 3D</title>
+<style>
+  :root { --navy:#12304A; --navy-dark:#0F2539; --green:#1E9E5A; --green-light:#2FBF73; --mint:#E8F7EF; }
+  html, body { margin:0; width:1920px; height:1080px; overflow:hidden; background:var(--navy-dark); font-family:'Inter', sans-serif; }
+  #bg { position:absolute; inset:0; background: radial-gradient(1200px 800px at 60% 40%, #1d4566 0%, #12304A 45%, #0b1d2d 100%); }
+  canvas { position:absolute; inset:0; }
+  /* Legendas: cartão azul-marinho no canto inferior esquerdo */
+  #caption { position:absolute; left:96px; bottom:110px; display:flex; align-items:center; gap:28px;
+             padding:30px 44px 30px 30px; border-radius:36px; background:rgba(18,48,74,0.94);
+             box-shadow:0 24px 60px rgba(0,0,0,0.28); opacity:0; will-change:transform,opacity; }
+  #caption .num { width:84px; height:84px; border-radius:50%; background:var(--green); color:#fff;
+                  font-weight:800; font-size:46px; display:flex; align-items:center; justify-content:center; flex:none; }
+  #caption .num.empty { display:none; }
+  #caption .title { color:#fff; font-weight:700; font-size:54px; letter-spacing:-1px; line-height:1.1; }
+  #caption .sub { color:#A8C4BD; font-weight:500; font-size:30px; margin-top:6px; }
+  /* Abertura e fecho */
+  .card { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+          background:var(--navy-dark); opacity:0; }
+  .brand { display:flex; align-items:center; gap:36px; }
+  .brand svg { width:200px; height:200px; }
+  .word { font-weight:800; font-size:150px; letter-spacing:-5px; color:#fff; line-height:1; }
+  .word b { color:var(--green-light); font-weight:800; }
+  .tag { color:#A8C4BD; font-size:44px; font-weight:500; margin-top:34px; }
+  .slogan { color:#fff; font-size:58px; font-weight:700; margin-top:46px; letter-spacing:-1px; }
+  .slogan span { color:var(--green-light); }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "/video/node_modules/three/build/three.module.js",
+    "three/addons/": "/video/node_modules/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="bg"></div>
+<div id="caption"><div class="num"></div><div><div class="title"></div><div class="sub"></div></div></div>
+
+<template id="mascot">
+  <!-- Mascote do logótipo (igual ao ic_robot.xml da app) -->
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#FFFFFF" stroke="#E8F7EF" stroke-width="3" d="M30,34 L30,8 L35,4 L40,8 L45,4 L50,8 L55,4 L60,8 L65,4 L70,8 L70,34 Z"/>
+    <path fill="#8A99A6" d="M37,15h24v3h-24z"/><path fill="#8A99A6" d="M37,22h18v3h-18z"/>
+    <path fill="#1d4566" stroke="#E8F7EF" stroke-width="1.5" d="M22,32 L78,32 A16,16 0,0 1,94 48 L94,80 A16,16 0,0 1,78 96 L22,96 A16,16 0,0 1,6 80 L6,48 A16,16 0,0 1,22 32 Z"/>
+    <path fill="#2FBF73" d="M24,29 L76,29 A3,3 0,0 1,76 35 L24,35 A3,3 0,0 1,24 29 Z"/>
+    <path fill="#E8F7EF" d="M28,44 L72,44 A8,8 0,0 1,80 52 L80,76 A8,8 0,0 1,72 84 L28,84 A8,8 0,0 1,20 76 L20,52 A8,8 0,0 1,28 44 Z"/>
+    <circle cx="38" cy="58" r="5" fill="#12304A"/><circle cx="62" cy="58" r="5" fill="#12304A"/>
+    <path fill="none" stroke="#1E9E5A" stroke-width="4" stroke-linecap="round" d="M40,70 Q50,78 60,70"/>
+    <path fill="#2FBF73" d="M86,10 L88,16 L94,18 L88,20 L86,26 L84,20 L78,18 L84,16 Z"/>
+  </svg>
+</template>
+
+<div class="card" id="intro">
+  <div class="brand"><span class="m"></span><div class="word">Receipt<b>AI</b></div></div>
+  <div class="tag">O teu frigorífico sabe o que falta.</div>
+</div>
+<div class="card" id="outro">
+  <div class="brand"><span class="m"></span><div class="word">Receipt<b>AI</b></div></div>
+  <div class="slogan">Poupa <span>tempo</span>, <span>dinheiro</span> e <span>comida</span>.</div>
+</div>
+
+<script type="module" src="scene.js"></script>
+</body>
+</html>

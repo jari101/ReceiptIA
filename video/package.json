@@ -1,0 +1,12 @@
+{
+  "name": "receiptai-video",
+  "private": true,
+  "description": "Vídeo 3D de 30 s do ReceiptAI (three.js + Playwright + ffmpeg)",
+  "scripts": {
+    "render": "node render.cjs",
+    "preview": "node render.cjs --preview"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  }
+}
