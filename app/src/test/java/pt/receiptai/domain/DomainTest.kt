@@ -70,7 +70,15 @@ class DomainTest {
         val year = StatsCalculator.summarize(StatsPeriod.ANO, today, receipts, emptyList())
         assertEquals(6500L, year.totalCents)
         assertEquals(12, year.buckets.size)
-        assertEquals(9999L, year.previousTotalCents)
+        // O ano ainda não acabou: compara com 1 jan – 19 nov de 2025 (a compra de dezembro não conta).
+        assertEquals(0L, year.previousTotalCents)
+        assertNull(year.changePercent)
+
+        // Um ano que já acabou compara com o ano anterior inteiro.
+        val lastYear = StatsCalculator.summarize(StatsPeriod.ANO, LocalDate.of(2025, 6, 1), receipts, emptyList(), today)
+        assertEquals(9999L, lastYear.totalCents)
+        assertEquals("Seg", week.buckets.first().label)
+        assertEquals("Sáb", week.buckets[5].label)
     }
 
     @Test
@@ -98,6 +106,8 @@ class DomainTest {
             line(4, today.minusDays(65), "Café", 329), line(5, today.minusDays(35), "Café", 329), line(6, today.minusDays(5), "Café", 329),
             // Só 2 compras -> não chega
             line(7, today.minusDays(40), "Arroz", 119), line(8, today.minusDays(20), "Arroz", 119),
+            // Pão de 7 em 7 dias, mas a última foi há 60 dias -> deixou de comprar, não sugerir
+            line(9, today.minusDays(74), "Pão", 120), line(10, today.minusDays(67), "Pão", 120), line(11, today.minusDays(60), "Pão", 120),
         )
         val s = ShoppingListPlanner.suggest(history, today)
         assertEquals(listOf("Leite"), s.map { it.name })
