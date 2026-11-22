@@ -3,6 +3,11 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import {
+  canvasTex, roundRect, rng, azulejoTextures, cabinetTexture, stoneTexture, postItTexture, calendarTexture,
+  receiptTextures,
+} from './textures.js';
 
 const W = 1920, H = 1080;
 const ROOT = '/';
@@ -40,8 +45,13 @@ document.body.insertBefore(renderer.domElement, document.getElementById('caption
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(35, W / H, 0.01, 20);
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0xb9c8d0, 1.35));
-const key = new THREE.DirectionalLight(0xffffff, 2.4);
+// Reflexos realistas (porta lacada, puxador de metal, azulejos vidrados): ambiente "sala" do three.js.
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.5;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb9c8d0, 0.95));
+const key = new THREE.DirectionalLight(0xfff6ec, 2.3);
 key.position.set(0.7, 1.1, 1.3);
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
@@ -53,58 +63,170 @@ const fill = new THREE.DirectionalLight(0xe8f7ef, 0.7);
 fill.position.set(-1, 0.3, 0.9);
 scene.add(fill);
 
-// ---------- Porta do frigorífico ----------
-const door = new THREE.Mesh(
-  new RoundedBoxGeometry(1.15, 1.6, 0.05, 6, 0.03),
-  new THREE.MeshStandardMaterial({ color: 0xe9eef1, roughness: 0.5, metalness: 0.05 }),
-);
-door.position.set(0.12, -0.3, -0.03);
-door.receiveShadow = true;
-scene.add(door);
-const handle = new THREE.Mesh(
-  new RoundedBoxGeometry(0.022, 0.55, 0.03, 4, 0.01),
-  new THREE.MeshStandardMaterial({ color: 0xc3ccd3, roughness: 0.25, metalness: 0.7 }),
-);
-handle.position.set(-0.41, -0.12, 0.012);
-handle.castShadow = true;
-scene.add(handle);
+// ---------- Cozinha: parede de azulejos, frigorífico, bancada e armários ----------
+const FLOOR = -1.42;       // o robô (y = 0) fica a ~1,45 m do chão
+const WALL_Z = -0.72;      // parede atrás do frigorífico
+function box(w, h, d, mat, x, y, z, r = 0.004) {
+  const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2, h / 2, d / 2)), mat);
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; scene.add(m);
+  return m;
+}
+function buildKitchen() {
+  // Parede com azulejo português (azulejos de 15 cm).
+  const az = azulejoTextures();
+  const wallW = 6, wallH = 2.8;
+  az.map.repeat.set(wallW / 0.6, wallH / 0.6); az.bump.repeat.copy(az.map.repeat);
+  const wall = new THREE.Mesh(
+    new THREE.PlaneGeometry(wallW, wallH),
+    new THREE.MeshPhysicalMaterial({ map: az.map, bumpMap: az.bump, bumpScale: 3, roughness: 0.32, clearcoat: 0.6, clearcoatRoughness: 0.18 }),
+  );
+  wall.position.set(0.6, FLOOR + wallH / 2, WALL_Z);
+  wall.receiveShadow = true;
+  scene.add(wall);
 
-// ---------- Texturas auxiliares (canvas) ----------
-function canvasTex(w, h, draw, flipY = true) {
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  draw(c.getContext('2d'), w, h);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = flipY; tex.anisotropy = 8;
-  return tex;
+  // Frigorífico branco lacado: corpo, porta, junta de borracha, gaveta do congelador.
+  // Rugosidade com dedadas perto do puxador: o verniz brilha menos onde se toca.
+  const smudge = (base, mark) => canvasTex(512, 512, (g, w, h) => {
+    g.fillStyle = `rgb(${base},${base},${base})`; g.fillRect(0, 0, w, h);
+    const r = rng(77);
+    for (let i = 0; i < 26; i++) {
+      const x = w * (0.02 + r() * 0.22), y = h * (0.3 + r() * 0.4), rad = 8 + r() * 22;
+      const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+      gr.addColorStop(0, `rgba(${mark},${mark},${mark},0.55)`); gr.addColorStop(1, `rgba(${mark},${mark},${mark},0)`);
+      g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    }
+    for (let i = 0; i < 6; i++) { // marcas largas e suaves (pano da limpeza)
+      const x = w * r(), y = h * r(), rad = 60 + r() * 90;
+      const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+      gr.addColorStop(0, `rgba(${mark},${mark},${mark},0.12)`); gr.addColorStop(1, `rgba(${mark},${mark},${mark},0)`);
+      g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    }
+  });
+  const roughMap = smudge(70, 150), coatMap = smudge(16, 90);
+  roughMap.colorSpace = coatMap.colorSpace = THREE.NoColorSpace;
+  // Queda de luz na porta: mais clara em cima (onde bate a luz), um pouco mais escura nos bordos e em baixo.
+  const falloff = canvasTex(512, 1024, (g, w, h) => {
+    g.fillStyle = '#d9dee2'; g.fillRect(0, 0, w, h);
+    const gr = g.createRadialGradient(w * 0.62, h * 0.3, 20, w * 0.55, h * 0.42, h * 0.75);
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.45, '#f6f8f9'); gr.addColorStop(1, '#dfe4e8');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    const edge = g.createLinearGradient(0, 0, w, 0);
+    edge.addColorStop(0, 'rgba(150,160,170,0.18)'); edge.addColorStop(0.08, 'rgba(150,160,170,0)');
+    edge.addColorStop(0.92, 'rgba(150,160,170,0)'); edge.addColorStop(1, 'rgba(150,160,170,0.18)');
+    g.fillStyle = edge; g.fillRect(0, 0, w, h);
+  });
+  const lacquer = new THREE.MeshPhysicalMaterial({
+    color: 0xf7f8f9, map: falloff, roughness: 1, roughnessMap: roughMap, clearcoat: 1, clearcoatRoughness: 1,
+    clearcoatRoughnessMap: coatMap, envMapIntensity: 2.4,
+  });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe3e7ea, roughness: 0.45 });
+  const rubber = new THREE.MeshStandardMaterial({ color: 0x3a3f44, roughness: 0.8 });
+  const metal = new THREE.MeshStandardMaterial({ color: 0xd2d7db, metalness: 1, roughness: 0.3 });
+  const top = 0.55;
+  box(1.19, top - FLOOR, 0.6, bodyMat, 0.12, (top + FLOOR) / 2, WALL_Z + 0.32, 0.02);
+  const door = box(1.15, 1.56, 0.05, lacquer, 0.12, -0.28, -0.031, 0.025);
+  door.castShadow = false;
+  box(1.162, 1.572, 0.006, rubber, 0.12, -0.28, -0.058, 0.02);            // junta
+  box(1.15, 0.31, 0.05, lacquer, 0.12, -1.245, -0.031, 0.02);             // gaveta
+  box(1.162, 0.322, 0.006, rubber, 0.12, -1.245, -0.058, 0.02);
+  // Puxadores de alumínio com apoios.
+  box(0.024, 0.62, 0.022, metal, -0.405, -0.15, 0.036, 0.01);
+  for (const y of [-0.43, 0.13]) box(0.016, 0.022, 0.034, metal, -0.405, y, 0.012, 0.004);
+  box(0.6, 0.022, 0.022, metal, 0.12, -1.13, 0.036, 0.01);
+  for (const x of [-0.15, 0.39]) box(0.022, 0.016, 0.034, metal, x, -1.13, 0.012, 0.004);
+
+  // Bancada à direita do frigorífico: armários em baixo e em cima.
+  const right = 0.12 + 0.595 + 0.02, len = 2.1, cx = right + len / 2;
+  const stone = new THREE.MeshStandardMaterial({ map: stoneTexture(), roughness: 0.4 });
+  box(len, 0.04, 0.64, stone, cx, -0.55, WALL_Z + 0.32, 0.006);
+  const lower = new THREE.MeshStandardMaterial({ map: cabinetTexture(4, 1024, 400, 'top'), roughness: 0.5 });
+  box(len, 0.80, 0.58, lower, cx, (FLOOR + 0.03 - 0.57) / 2 + 0.0, WALL_Z + 0.29, 0.004);
+  const upper = new THREE.MeshStandardMaterial({ map: cabinetTexture(4, 1024, 360, 'bottom'), roughness: 0.5 });
+  box(len, 0.72, 0.34, upper, cx, 0.62, WALL_Z + 0.17, 0.004);
+  // Vaso com planta e taça com laranjas em cima da bancada.
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.045, 0.12, 24), new THREE.MeshStandardMaterial({ color: 0xc46a45, roughness: 0.7 }));
+  pot.position.set(right + 0.3, -0.47, WALL_Z + 0.22); pot.castShadow = true; scene.add(pot);
+  const leaf = new THREE.MeshStandardMaterial({ color: 0x3f8f4f, roughness: 0.6 });
+  [[0, 0.1, 0, 0.05], [0.04, 0.14, 0.02, 0.04], [-0.04, 0.13, -0.01, 0.045], [0.01, 0.18, -0.02, 0.035]].forEach(([x, y, z, r]) => {
+    const l = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), leaf);
+    l.scale.set(1, 1.3, 1); l.position.set(pot.position.x + x, pot.position.y + y, pot.position.z + z); scene.add(l);
+  });
+  const bowl = new THREE.Mesh(new THREE.SphereGeometry(0.11, 32, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+    new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.25, clearcoat: 1, side: THREE.DoubleSide }));
+  bowl.position.set(right + 0.75, -0.43, WALL_Z + 0.3); scene.add(bowl);
+  const orange = new THREE.MeshStandardMaterial({ color: 0xf29a2e, roughness: 0.55 });
+  [[0, 0], [0.06, 0.02], [-0.05, 0.03], [0.01, -0.06], [0.0, 0.0, 0.05]].forEach(([x, z, y = 0]) => {
+    const o = new THREE.Mesh(new THREE.SphereGeometry(0.038, 20, 14), orange);
+    o.position.set(bowl.position.x + x, -0.49 + y + 0.03, bowl.position.z + z); o.castShadow = true; scene.add(o);
+  });
+
+  // Coisas presas na porta: post-it (lista de compras "de memória"), calendário com íman, ímanes soltos.
+  const postGeo = new THREE.PlaneGeometry(0.076, 0.076, 1, 10);
+  const pp = postGeo.attributes.position;
+  for (let i = 0; i < pp.count; i++) { const v = (0.038 - pp.getY(i)) / 0.076; pp.setZ(i, 0.011 * Math.pow(Math.max(0, v - 0.35) / 0.65, 2)); }
+  postGeo.computeVertexNormals();
+  const postIt = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ map: postItTexture(), roughness: 0.75, side: THREE.DoubleSide }));
+  postIt.position.set(-0.24, 0.12, -0.0045); postIt.rotation.z = 0.06; postIt.castShadow = true; postIt.receiveShadow = true;
+  scene.add(postIt);
+  const calGeo = new THREE.PlaneGeometry(0.1, 0.137, 1, 12);
+  const cp = calGeo.attributes.position;
+  for (let i = 0; i < cp.count; i++) { const v = (0.0685 - cp.getY(i)) / 0.137; cp.setZ(i, 0.004 * Math.sin(v * Math.PI) + 0.006 * v * v); }
+  calGeo.computeVertexNormals();
+  const cal = new THREE.Mesh(calGeo, new THREE.MeshStandardMaterial({ map: calendarTexture(), roughness: 0.8, side: THREE.DoubleSide }));
+  cal.position.set(0.165, 0.118, -0.0045); cal.rotation.z = -0.035; cal.castShadow = true; cal.receiveShadow = true;
+  scene.add(cal);
+  const magnet = (color, x, y) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.008, 32),
+      new THREE.MeshPhysicalMaterial({ color, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.1 }));
+    m.rotation.x = Math.PI / 2; m.position.set(x, y, 0.0); m.castShadow = true; scene.add(m);
+  };
+  magnet(0xd94b4b, 0.167, 0.182);
+  magnet(0x1e9e5a, -0.2, 0.03);
+  magnet(0x2a5aa8, -0.3, 0.06);
 }
-function roundRect(g, x, y, w, h, r) {
-  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
-  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
-}
+
+// ---------- Texturas auxiliares ----------
 function loadImage(src) {
   return new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = src; });
 }
 
-// Recibo de papel (com texto) — substitui a malha "recibo" do GLB, que não tem coordenadas UV.
-const receiptLines = [
-  ['Leite meio gordo 1L', '0,89'], ['Iogurte natural x2', '2,98'], ['Bananas 0,850 kg', '1,01'],
-  ['Pão de forma', '1,49'], ['Ovos classe M', '2,29'], ['Atum em lata', '3,87'], ['Queijo flamengo', '2,29'],
-];
-const receiptTex = canvasTex(400, 600, (g, w, h) => {
-  g.fillStyle = '#fbfbf8'; g.fillRect(0, 0, w, h);
-  g.fillStyle = '#12304A'; g.font = '700 30px "JetBrains Mono"'; g.textAlign = 'center';
-  g.fillText('MERCADO DO BAIRRO', w / 2, 56);
-  g.font = '400 20px "JetBrains Mono"'; g.fillStyle = '#546777'; g.fillText('19-11-2026  18:42', w / 2, 90);
-  g.textAlign = 'left'; g.font = '500 21px "JetBrains Mono"'; g.fillStyle = '#1b2a36';
-  receiptLines.forEach(([n, p], i) => { const y = 140 + i * 44; g.fillText(n.toUpperCase().slice(0, 20), 24, y); g.textAlign = 'right'; g.fillText(p, w - 24, y); g.textAlign = 'left'; });
-  g.strokeStyle = '#8a99a6'; g.setLineDash([6, 6]); g.beginPath(); g.moveTo(24, 470); g.lineTo(w - 24, 470); g.stroke();
-  g.font = '700 28px "JetBrains Mono"'; g.fillStyle = '#12304A'; g.fillText('TOTAL', 24, 515); g.textAlign = 'right'; g.fillText('14,82 €', w - 24, 515);
-});
-const receipt = new THREE.Mesh(
-  new THREE.PlaneGeometry(0.076, 0.114),
-  new THREE.MeshStandardMaterial({ map: receiptTex, roughness: 0.9, side: THREE.DoubleSide, transparent: true }),
-);
-receipt.castShadow = true;
+// ---------- Recibo em papel térmico (3D, curvo e dobrado) ----------
+// Tem 8 × 20 cm como um talão verdadeiro. Entra pela ranhura de cima, passa pelos rolos
+// e sai por baixo do robô (ranhura de saída), por isso a malha é deformada em cada frame.
+const RW = 0.08, RL = 0.2, SEG_X = 10, SEG_Y = 90;
+const SLOT_TOP = 0.064, SLOT_BOTTOM = -0.064, PAPER_Z = 0.023;
+const receipt = new THREE.Group();
+let receiptGeo, receiptBase, receiptFront, receiptBack;
+function buildReceipt() {
+  const tex = receiptTextures();
+  receiptGeo = new THREE.PlaneGeometry(RW, RL, SEG_X, SEG_Y);
+  receiptBase = receiptGeo.attributes.position.array.slice();
+  const common = { roughness: 0.88, bumpMap: tex.bump, bumpScale: 1.2, alphaTest: 0.5, transparent: true };
+  receiptFront = new THREE.Mesh(receiptGeo, new THREE.MeshStandardMaterial({ ...common, map: tex.front, side: THREE.FrontSide }));
+  receiptBack = new THREE.Mesh(receiptGeo, new THREE.MeshStandardMaterial({ ...common, map: tex.back, side: THREE.BackSide }));
+  receiptFront.castShadow = true; receiptBack.castShadow = true;
+  receipt.add(receiptFront, receiptBack);
+}
+/** Deforma o papel: dentro do robô fica plano; fora enrola um pouco e mostra o vinco da dobra. */
+function shapeReceipt(centerY, fall) {
+  const pos = receiptGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = receiptBase[i * 3], ly = receiptBase[i * 3 + 1];
+    const Y = centerY + ly;                    // altura no referencial do robô
+    const v = (RL / 2 - ly) / RL;             // 0 = topo do papel, 1 = fundo
+    let z = 0;
+    let out = 0;                               // distância fora do robô
+    if (Y > SLOT_TOP) { out = Y - SLOT_TOP; z = 0.75 * out * out; }
+    else if (Y < SLOT_BOTTOM) { out = SLOT_BOTTOM - Y; z = 0.35 * out * out; }
+    const free = Math.min(1, out / 0.02);     // perto da ranhura o papel ainda está preso
+    z += free * (2.2 * x * x);                                     // papel ligeiramente arqueado
+    z += free * 0.0035 * Math.max(0, 1 - Math.abs(v - 0.42) / 0.035); // vinco da dobra
+    z += free * 0.0012 * Math.sin(v * Math.PI * 3.2 + 0.6);           // ondulação do papel
+    pos.setXYZ(i, x + fall.x * free, ly, z);
+  }
+  pos.needsUpdate = true;
+  receiptGeo.computeVertexNormals();
+}
 
 // Brilho dos LED enquanto lê
 const glowTex = canvasTex(256, 256, (g, w, h) => {
@@ -181,7 +303,7 @@ async function loadRobot() {
     if (o.material && o.material.name === 'ecra') faceMat = o.material;
   });
   robot.add(receipt, glow, ledLight);
-  receipt.position.set(0, 0.067, 0.023);
+  receipt.position.set(0, 0.3, PAPER_Z);
   glow.position.set(0, 0.07, 0.03);
   ledLight.position.set(0, 0.05, 0.035);
   scene.add(robot);
@@ -195,7 +317,7 @@ async function loadRobot() {
 
 // ---------- Câmara: posições-chave ----------
 const camKeys = [
-  { t: 0.0, pos: v3(0.62, 0.24, 1.7), tgt: v3(0.06, -0.06, 0) },
+  { t: 0.0, pos: v3(1.35, 0.12, 3.1), tgt: v3(0.42, -0.38, -0.3) },
   { t: 4.8, pos: v3(-0.03, 0.06, 0.46), tgt: v3(-0.06, 0.03, 0.02) },
   { t: 8.6, pos: v3(-0.17, 0.16, 0.34), tgt: v3(-0.045, 0.03, 0.02) },
   { t: 11.9, pos: v3(0.05, 0.05, 0.39), tgt: v3(-0.055, 0.0, 0.02) },
@@ -246,7 +368,7 @@ document.querySelectorAll('.m').forEach((m) => m.appendChild(mascot.content.clon
 function cardsAt(t) {
   // Abertura: logótipo 0–1,9 s, depois desaparece e revela a cena.
   const inK = easeOut(prog(t, 0.15, 0.9));
-  const outK = easeOut(prog(t, 1.9, 2.7));
+  const outK = easeOut(prog(t, 1.5, 2.2));
   intro.style.opacity = (Math.min(1, prog(t, 0, 0.01) + 1) * (1 - outK)).toFixed(3);
   intro.querySelector('.brand').style.transform = `translateY(${(1 - inK) * 30}px) scale(${0.95 + 0.05 * inK})`;
   intro.querySelector('.brand').style.opacity = inK;
@@ -263,12 +385,22 @@ const tmp = new THREE.Vector3();
 function renderFrame(t) {
   cameraAt(t);
 
-  // Recibo: aparece por cima, entra devagar e depois é puxado pelos rolos a velocidade constante.
+  // Recibo: desce pela mão até à ranhura (5–6,3 s), os rolos puxam-no a velocidade constante
+  // (7,4–11,1 s) e ele sai por baixo e cai (11,1–11,9 s).
   const appear = easeOut(prog(t, 5.0, 6.3));
-  const pull = prog(t, 7.4, 11.1); // linear: o motor puxa sempre à mesma velocidade
-  receipt.position.y = 0.067 + lerp(0.08, 0.02, appear) - 0.092 * pull;
-  receipt.material.opacity = appear;
-  receipt.visible = t > 5.0 && t < 11.2;
+  const pull = prog(t, 7.4, 11.1);                       // linear: o motor puxa sempre à mesma velocidade
+  const insertedBottom = SLOT_TOP - 0.02;                // 2 cm já dentro da ranhura
+  let bottomEdge = lerp(SLOT_TOP + 0.09, insertedBottom, appear);
+  const travel = (insertedBottom + RL) - (SLOT_BOTTOM - 0.006); // até o topo sair por baixo
+  bottomEdge -= travel * pull;
+  const ft = Math.max(0, t - 11.1);
+  bottomEdge -= 0.5 * 2.2 * ft * ft;                     // queda (gravidade, mais lenta para se ver)
+  receipt.position.y = bottomEdge + RL / 2;
+  receipt.rotation.z = 0.35 * ft * ft;
+  const fade = 1 - prog(t, 11.45, 11.9);
+  receiptFront.material.opacity = receiptBack.material.opacity = Math.min(prog(t, 5.0, 5.3), fade);
+  receipt.visible = t > 5.0 && t < 11.9;
+  if (receipt.visible) shapeReceipt(receipt.position.y, { x: 0 });
 
   // Rosto: espera -> a ler -> lido
   const face = t < 7.4 ? 'espera' : t < 11.2 ? 'a_ler' : 'lido';
@@ -331,7 +463,11 @@ function renderFrame(t) {
 window.renderFrame = renderFrame;
 window.sceneReady = (async () => {
   await document.fonts.ready;
-  await Promise.all([document.fonts.load('600 46px Inter'), document.fonts.load('800 46px Inter'), document.fonts.load('500 21px "JetBrains Mono"')]);
+  await Promise.all([document.fonts.load('600 46px Inter'), document.fonts.load('800 46px Inter'),
+    document.fonts.load('700 54px Inter'), document.fonts.load('400 25px "DejaVu Sans Mono"'),
+    document.fonts.load('italic 50px "Bitstream Charter"')]);
+  buildKitchen();
+  buildReceipt();
   makeCards();
   await Promise.all([loadRobot(), loadScreens()]);
   renderFrame(0);

@@ -37,7 +37,7 @@ function serve() {
   if (preview) {
     const dir = path.join(__dirname, 'preview');
     fs.mkdirSync(dir, { recursive: true });
-    for (const t of [1.0, 6.0, 9.0, 11.6, 14.8, 20.5, 24.0, 27.0, 29.5]) {
+    for (const t of [2.4, 3.4, 5.8, 8.2, 9.8, 10.9, 15.0, 21.0, 24.0, 27.0]) {
       await page.evaluate((x) => window.renderFrame(x), t);
       await page.screenshot({ path: path.join(dir, `t${String(t).replace('.', '_')}.png`) });
       console.log('preview', t);

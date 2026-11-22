@@ -22,6 +22,10 @@ Com essas compras, a app mostra estatísticas, avisa quando a comida está a est
 
 [`video/ReceiptAI_demo_30s.mp4`](video/ReceiptAI_demo_30s.mp4): vídeo 3D de 30 s feito com o modelo do robô (`ReceiptAI_montado.glb`) e com os ecrãs reais da app.
 
+- **Cenário:** uma cozinha com azulejo português e um frigorífico branco lacado, com post-it, calendário e ímanes.
+- **Recibo:** em papel térmico, curvo e dobrado. Passa pelos rolos do robô e sai por baixo.
+- **Texturas:** são todas desenhadas em código, em [`video/textures.js`](video/textures.js).
+
 ## Funcionalidades
 
 - **Ler recibos em vários formatos**
