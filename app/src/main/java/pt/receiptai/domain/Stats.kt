@@ -63,7 +63,8 @@ object StatsCalculator {
         return when (period) {
             StatsPeriod.SEMANA -> (0L..6L).map { i ->
                 val day = range.start.plusDays(i)
-                Bucket(day.dayOfWeek.getDisplayName(TextStyle.SHORT, Money.PT).trimEnd('.').replaceFirstChar { it.uppercase() },
+                // "segunda" -> "Seg", "sábado" -> "Sáb" (cabe por baixo das barras)
+                Bucket(day.dayOfWeek.getDisplayName(TextStyle.FULL, Money.PT).take(3).replaceFirstChar { it.uppercase() },
                     inRange.filter { it.first == day }.sumOf { it.second })
             }
             StatsPeriod.MES -> {
@@ -101,9 +102,16 @@ object StatsCalculator {
         anchor: LocalDate,
         receipts: List<Pair<LocalDate, Long>>,
         lines: List<PurchaseLine>,
+        today: LocalDate = anchor,
     ): PeriodSummary {
         val current = range(period, anchor)
-        val previous = range(period, shift(period, anchor, -1))
+        val fullPrevious = range(period, shift(period, anchor, -1))
+        // Comparação justa: se o período atual ainda não acabou (ex.: dia 19 do mês),
+        // comparamos com os MESMOS dias do período anterior (dias 1 a 19).
+        val previous = if (today in current) {
+            val elapsed = java.time.temporal.ChronoUnit.DAYS.between(current.start, today)
+            fullPrevious.start..minOf(fullPrevious.endInclusive, fullPrevious.start.plusDays(elapsed))
+        } else fullPrevious
         val inCurrent = receipts.filter { it.first in current }
         return PeriodSummary(
             from = current.start,

@@ -8,6 +8,7 @@ import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
+import androidx.core.graphics.createBitmap
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
@@ -98,7 +99,7 @@ class ReceiptImporter(private val context: Context) {
     private suspend fun process(bytes: ByteArray, mime: String?, name: String?, imageUri: Uri? = null): ImportResult {
         val type = FileTypeDetector.detect(mime, name, bytes)
             ?: return ImportResult.Failure("Formato não suportado ($mime). Usa PDF, imagem, CSV, JSON, XML, HTML ou TXT.")
-        val text by lazy { bytes.decodeToString().trimStart('﻿') }
+        val text by lazy { bytes.decodeToString().trimStart('\uFEFF') }
         return when (type) {
             ReceiptFileType.PDF -> fromPlainText(pdfText(bytes), type)
             ReceiptFileType.IMAGEM -> {
@@ -138,7 +139,7 @@ class ReceiptImporter(private val context: Context) {
                         for (index in 0 until minOf(renderer.pageCount, 5)) {
                             val bmp = renderer.openPage(index).use { page ->
                                 val scale = 2
-                                Bitmap.createBitmap(page.width * scale, page.height * scale, Bitmap.Config.ARGB_8888).also {
+                                createBitmap(page.width * scale, page.height * scale).also {
                                     it.eraseColor(Color.WHITE)
                                     page.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                                 }

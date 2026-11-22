@@ -36,7 +36,7 @@ object FileTypeDetector {
 
     /** Ficheiros de texto: vê se o conteúdo parece JSON, XML, HTML ou CSV. */
     fun textSniff(bytes: ByteArray): ReceiptFileType {
-        val head = String(bytes, 0, minOf(bytes.size, 2048), Charsets.UTF_8).trimStart('﻿', ' ', '\n', '\r', '\t')
+        val head = String(bytes, 0, minOf(bytes.size, 2048), Charsets.UTF_8).trimStart('\uFEFF', ' ', '\n', '\r', '\t')
         val lower = head.lowercase()
         return when {
             head.startsWith("{") || head.startsWith("[") -> ReceiptFileType.JSON

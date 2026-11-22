@@ -64,7 +64,7 @@ fun AppCard(
 }
 
 @Composable
-fun ScreenTitle(title: String, subtitle: String? = null, modifier: Modifier = Modifier) {
+fun ScreenTitle(title: String, subtitle: String?, modifier: Modifier = Modifier) {
     Column(modifier.padding(bottom = 8.dp)) {
         Text(title, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
         if (subtitle != null) {

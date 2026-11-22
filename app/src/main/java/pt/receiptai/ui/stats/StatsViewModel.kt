@@ -30,7 +30,7 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
         container.receipts.receiptTotals,
         container.receipts.purchaseLines,
     ) { period, day, totals, lines ->
-        val summary = StatsCalculator.summarize(period, day, totals, lines)
+        val summary = StatsCalculator.summarize(period, day, totals, lines, container.today())
         StatsUiState(period, summary, canGoForward = summary.to < container.today())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatsUiState())
 

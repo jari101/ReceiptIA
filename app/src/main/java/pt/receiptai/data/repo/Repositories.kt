@@ -46,7 +46,8 @@ class ReceiptRepository(private val db: ReceiptAiDatabase, private val today: ()
         receipts: List<ParsedReceipt>,
         source: ReceiptSource,
         rawText: String = "",
-        pantryWindowDays: Long = Long.MAX_VALUE,
+        /** Só os recibos destes últimos dias enchem a despensa (um recibo antigo já foi comido!). */
+        pantryWindowDays: Long = 30,
     ): Int = db.withTransaction {
         var saved = 0
         for (r in receipts) {

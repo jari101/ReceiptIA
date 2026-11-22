@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import pt.receiptai.AppContainer
+import pt.receiptai.data.db.PantryItemEntity
+import pt.receiptai.data.db.ReceiptWithItems
 import pt.receiptai.domain.StatsCalculator
 import pt.receiptai.domain.StatsPeriod
 import java.time.LocalDate
@@ -33,23 +35,34 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         container.receipts.receiptTotals,
         container.receipts.latest,
         container.pantry.active,
-    ) { count, totals, latest, pantry ->
-        val today = container.today()
-        val month = StatsCalculator.range(StatsPeriod.MES, today)
-        val inMonth = totals.filter { it.first in month }
-        HomeUiState(
-            loading = false,
-            isEmpty = count == 0,
-            monthTotalCents = inMonth.sumOf { it.second },
-            monthReceipts = inMonth.size,
-            lastPurchase = latest?.let { LastPurchase(it.receipt.storeName, it.receipt.purchasedOn, it.receipt.totalCents, it.items.size) },
-            alerts = pantry.map { AlertItem(it.id, it.name, ChronoUnit.DAYS.between(today, it.expiresOn)) }
-                .filter { it.daysLeft <= 2 }
-                .take(5),
-        )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+    ) { count, totals, latest, pantry -> buildState(count, totals, latest, pantry, container.today()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     fun loadDemoData() {
         viewModelScope.launch { container.receipts.loadDemoData() }
+    }
+
+    companion object {
+        /** Função "pura": transforma os dados da base de dados no estado do ecrã (fácil de testar). */
+        fun buildState(
+            count: Int,
+            totals: List<Pair<LocalDate, Long>>,
+            latest: ReceiptWithItems?,
+            pantry: List<PantryItemEntity>,
+            today: LocalDate,
+        ): HomeUiState {
+            val month = StatsCalculator.range(StatsPeriod.MES, today)
+            val inMonth = totals.filter { it.first in month }
+            return HomeUiState(
+                loading = false,
+                isEmpty = count == 0,
+                monthTotalCents = inMonth.sumOf { it.second },
+                monthReceipts = inMonth.size,
+                lastPurchase = latest?.let { LastPurchase(it.receipt.storeName, it.receipt.purchasedOn, it.receipt.totalCents, it.items.size) },
+                alerts = pantry.map { AlertItem(it.id, it.name, ChronoUnit.DAYS.between(today, it.expiresOn)) }
+                    .filter { it.daysLeft <= 2 }
+                    .take(5),
+            )
+        }
     }
 }

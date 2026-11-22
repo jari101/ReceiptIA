@@ -47,7 +47,11 @@ class ExpiryCheckWorker(context: Context, params: WorkerParameters) : CoroutineW
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(applicationContext).notify(NOTIFICATION_ID, notification)
+        try {
+            NotificationManagerCompat.from(applicationContext).notify(NOTIFICATION_ID, notification)
+        } catch (e: SecurityException) {
+            // O utilizador retirou a autorização de notificações entretanto: não faz mal.
+        }
         return Result.success()
     }
 

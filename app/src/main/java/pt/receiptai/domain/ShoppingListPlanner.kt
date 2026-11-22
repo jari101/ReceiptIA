@@ -22,6 +22,8 @@ object ShoppingListPlanner {
         today: LocalDate,
         minPurchases: Int = 3,
         factor: Double = 0.9,
+        /** Se já passou mais do que 3× o intervalo normal, o cliente deixou de comprar — não insistimos. */
+        giveUpFactor: Double = 3.0,
     ): List<ShoppingSuggestion> =
         history.groupBy { it.normalizedName.ifBlank { it.name.lowercase() } }
             .mapNotNull { (key, lines) ->
@@ -30,7 +32,7 @@ object ShoppingListPlanner {
                 val intervals = dates.zipWithNext { a, b -> ChronoUnit.DAYS.between(a, b) }
                 val average = intervals.average()
                 val since = ChronoUnit.DAYS.between(dates.last(), today)
-                if (since < factor * average) return@mapNotNull null
+                if (since < factor * average || since > giveUpFactor * average) return@mapNotNull null
                 val displayName = lines.groupingBy { it.name }.eachCount().maxBy { it.value }.key
                 ShoppingSuggestion(displayName, key, average, since)
             }

@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pt.receiptai.AppContainer
+import pt.receiptai.data.db.PantryItemEntity
+import pt.receiptai.data.db.RecipeWithIngredients
+import java.time.LocalDate
 import pt.receiptai.data.repo.toInfo
 import pt.receiptai.domain.DietTag
 import pt.receiptai.domain.MealType
@@ -44,25 +47,7 @@ class RecipesViewModel(private val container: AppContainer) : ViewModel() {
     private val filters = combine(mealType, container.settings.diets, cookMode, expanded, ::Filters)
 
     val state: StateFlow<RecipesUiState> = combine(container.recipes.recipes, container.pantry.active, filters) { recipes, pantry, f ->
-        val today = container.today()
-        // Só contam ingredientes que ainda estão dentro da validade.
-        val available = pantry.filter { !it.expiresOn.isBefore(today) }.map { it.name }
-        val byId = recipes.associateBy { it.recipe.id }
-        var matches = RecipeMatcher.match(recipes.map { it.toInfo() }, available, f.mealType, f.diets)
-        // "O que posso cozinhar?": só receitas com pelo menos metade dos ingredientes em casa.
-        matches = if (f.cookMode) matches.filter { it.coverage >= 0.5f } else matches.sortedBy { it.recipe.name }
-        RecipesUiState(
-            loading = false,
-            recipes = matches.map { m ->
-                val r = byId.getValue(m.recipe.id)
-                RecipeCardData(m, r.ingredients.associate { it.name to it.amount }, r.recipe.steps.lines().filter { it.isNotBlank() }, r.recipe.isCustom)
-            },
-            mealType = f.mealType,
-            diets = f.diets,
-            cookMode = f.cookMode,
-            expanded = f.expanded,
-            pantryCount = available.size,
-        )
+        buildState(recipes, pantry, f.mealType, f.diets, f.cookMode, f.expanded, container.today())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecipesUiState())
 
     fun toggleCookMode() = cookMode.update { !it }
@@ -79,5 +64,36 @@ class RecipesViewModel(private val container: AppContainer) : ViewModel() {
 
     fun delete(id: Long) {
         viewModelScope.launch { container.recipes.delete(id) }
+    }
+
+    companion object {
+        fun buildState(
+            recipes: List<RecipeWithIngredients>,
+            pantry: List<PantryItemEntity>,
+            mealType: MealType?,
+            diets: Set<DietTag>,
+            cookMode: Boolean,
+            expanded: Set<Long>,
+            today: LocalDate,
+        ): RecipesUiState {
+            // Só contam ingredientes que ainda estão dentro da validade.
+            val available = pantry.filter { !it.expiresOn.isBefore(today) }.map { it.name }
+            val byId = recipes.associateBy { it.recipe.id }
+            var matches = RecipeMatcher.match(recipes.map { it.toInfo() }, available, mealType, diets)
+            // "O que posso cozinhar?": só receitas com pelo menos metade dos ingredientes em casa.
+            matches = if (cookMode) matches.filter { it.coverage >= 0.5f } else matches.sortedBy { it.recipe.name }
+            return RecipesUiState(
+                loading = false,
+                recipes = matches.map { m ->
+                    val r = byId.getValue(m.recipe.id)
+                    RecipeCardData(m, r.ingredients.associate { it.name to it.amount }, r.recipe.steps.lines().filter { it.isNotBlank() }, r.recipe.isCustom)
+                },
+                mealType = mealType,
+                diets = diets,
+                cookMode = cookMode,
+                expanded = expanded,
+                pantryCount = available.size,
+            )
+        }
     }
 }
