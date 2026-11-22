@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícone da app (camada da frente do ícone adaptativo, 108x108 com zona segura de 66). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="25" android:translateY="23" android:scaleX="0.58" android:scaleY="0.58">
+        <path android:fillColor="#FFFFFF" android:strokeColor="#12304A" android:strokeWidth="3"
+            android:pathData="M30,34 L30,8 L35,4 L40,8 L45,4 L50,8 L55,4 L60,8 L65,4 L70,8 L70,34 Z" />
+        <path android:fillColor="#8A99A6" android:pathData="M37,15h24v3h-24z" />
+        <path android:fillColor="#8A99A6" android:pathData="M37,22h18v3h-18z" />
+        <path android:fillColor="#12304A"
+            android:pathData="M22,32 L78,32 A16,16 0,0 1,94 48 L94,80 A16,16 0,0 1,78 96 L22,96 A16,16 0,0 1,6 80 L6,48 A16,16 0,0 1,22 32 Z" />
+        <path android:fillColor="#1E9E5A"
+            android:pathData="M24,29 L76,29 A3,3 0,0 1,76 35 L24,35 A3,3 0,0 1,24 29 Z" />
+        <path android:fillColor="#E8F7EF"
+            android:pathData="M28,44 L72,44 A8,8 0,0 1,80 52 L80,76 A8,8 0,0 1,72 84 L28,84 A8,8 0,0 1,20 76 L20,52 A8,8 0,0 1,28 44 Z" />
+        <path android:fillColor="#12304A" android:pathData="M38,58m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+        <path android:fillColor="#12304A" android:pathData="M62,58m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+        <path android:strokeColor="#1E9E5A" android:strokeWidth="4" android:strokeLineCap="round"
+            android:pathData="M40,70 Q50,78 60,70" />
+    </group>
+</vector>

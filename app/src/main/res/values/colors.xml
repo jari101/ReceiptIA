@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cores do logótipo ReceiptAI -->
+    <color name="navy">#12304A</color>
+    <color name="green">#1E9E5A</color>
+    <color name="mint">#E8F7EF</color>
+    <color name="slate">#546777</color>
+    <color name="navy_dark">#0F2539</color>
+</resources>

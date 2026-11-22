@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Fatura eletrónica UBL 2.1 (CIUS-PT) — exemplo fictício -->
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:ID>FT 2026/77</cbc:ID>
+  <cbc:IssueDate>2026-11-16</cbc:IssueDate>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyName><cbc:Name>Frutaria Central</cbc:Name></cac:PartyName>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:LegalMonetaryTotal>
+    <cbc:PayableAmount currencyID="EUR">5.47</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="KGM">1.5</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">2.69</cbc:LineExtensionAmount>
+    <cac:Item><cbc:Name>Maçã gala</cbc:Name></cac:Item>
+    <cac:Price><cbc:PriceAmount currencyID="EUR">1.79</cbc:PriceAmount></cac:Price>
+  </cac:InvoiceLine>
+  <cac:InvoiceLine>
+    <cbc:ID>2</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="KGM">2</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">2.78</cbc:LineExtensionAmount>
+    <cac:Item><cbc:Name>Laranjas</cbc:Name></cac:Item>
+    <cac:Price><cbc:PriceAmount currencyID="EUR">1.39</cbc:PriceAmount></cac:Price>
+  </cac:InvoiceLine>
+</Invoice>

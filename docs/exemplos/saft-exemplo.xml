@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Excerto de um ficheiro SAF-T PT — exemplo fictício -->
+<AuditFile xmlns="urn:OECD:StandardAuditFile-Tax:PT_1.04_01">
+  <Header>
+    <CompanyName>Talho Silva</CompanyName>
+  </Header>
+  <SourceDocuments>
+    <SalesInvoices>
+      <Invoice>
+        <InvoiceNo>FS A/12</InvoiceNo>
+        <InvoiceDate>2026-11-14</InvoiceDate>
+        <Line>
+          <ProductDescription>Peito de frango</ProductDescription>
+          <Quantity>0.800</Quantity>
+          <UnitPrice>5.18</UnitPrice>
+          <CreditAmount>4.14</CreditAmount>
+          <Tax><TaxPercentage>6</TaxPercentage></Tax>
+        </Line>
+        <Line>
+          <ProductDescription>Carne picada de novilho</ProductDescription>
+          <Quantity>0.500</Quantity>
+          <UnitPrice>8.49</UnitPrice>
+          <CreditAmount>4.25</CreditAmount>
+          <Tax><TaxPercentage>6</TaxPercentage></Tax>
+        </Line>
+        <DocumentTotals>
+          <NetTotal>8.39</NetTotal>
+          <GrossTotal>8.90</GrossTotal>
+        </DocumentTotals>
+      </Invoice>
+    </SalesInvoices>
+  </SourceDocuments>
+</AuditFile>

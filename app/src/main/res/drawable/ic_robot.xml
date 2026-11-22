@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mascote do ReceiptAI (igual ao logótipo): robô azul-marinho com um recibo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- recibo -->
+    <path android:fillColor="#FFFFFF" android:strokeColor="#12304A" android:strokeWidth="3"
+        android:pathData="M30,34 L30,8 L35,4 L40,8 L45,4 L50,8 L55,4 L60,8 L65,4 L70,8 L70,34 Z" />
+    <path android:fillColor="#8A99A6" android:pathData="M37,15h24v3h-24z" />
+    <path android:fillColor="#8A99A6" android:pathData="M37,22h18v3h-18z" />
+    <!-- corpo -->
+    <path android:fillColor="#12304A"
+        android:pathData="M22,32 L78,32 A16,16 0,0 1,94 48 L94,80 A16,16 0,0 1,78 96 L22,96 A16,16 0,0 1,6 80 L6,48 A16,16 0,0 1,22 32 Z" />
+    <path android:fillColor="#1E9E5A"
+        android:pathData="M24,29 L76,29 A3,3 0,0 1,76 35 L24,35 A3,3 0,0 1,24 29 Z" />
+    <!-- ecrã-rosto -->
+    <path android:fillColor="#E8F7EF"
+        android:pathData="M28,44 L72,44 A8,8 0,0 1,80 52 L80,76 A8,8 0,0 1,72 84 L28,84 A8,8 0,0 1,20 76 L20,52 A8,8 0,0 1,28 44 Z" />
+    <path android:fillColor="#12304A" android:pathData="M38,58m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+    <path android:fillColor="#12304A" android:pathData="M62,58m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+    <path android:strokeColor="#1E9E5A" android:strokeWidth="4" android:strokeLineCap="round"
+        android:pathData="M40,70 Q50,78 60,70" />
+    <!-- brilho -->
+    <path android:fillColor="#1E9E5A"
+        android:pathData="M86,10 L88,16 L94,18 L88,20 L86,26 L84,20 L78,18 L84,16 Z" />
+</vector>
