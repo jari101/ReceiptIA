@@ -37,10 +37,20 @@ function serve() {
   if (preview) {
     const dir = path.join(__dirname, 'preview');
     fs.mkdirSync(dir, { recursive: true });
-    for (const t of [2.4, 3.4, 5.8, 8.2, 9.8, 10.9, 15.0, 21.0, 24.0, 27.0]) {
+    for (const t of [1.9, 3.4, 9.8, 15.0, 21.0]) {
       await page.evaluate((x) => window.renderFrame(x), t);
       await page.screenshot({ path: path.join(dir, `t${String(t).replace('.', '_')}.png`) });
       console.log('preview', t);
+    }
+    // Grandes planos para verificar detalhes que no vídeo passam depressa.
+    const closeups = {
+      laranjas: [[1.05, -0.3, 0.05], [1.05, -0.47, -0.42]],
+      dobradica: [[0.95, 0.62, 0.45], [0.66, 0.5, -0.05]],
+    };
+    for (const [name, [pos, tgt]] of Object.entries(closeups)) {
+      await page.evaluate(([p, q]) => window.debugLook(p, q), [pos, tgt]);
+      await page.screenshot({ path: path.join(dir, `close_${name}.png`) });
+      console.log('preview', name);
     }
   } else {
     const ff = spawn('ffmpeg', ['-y', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',

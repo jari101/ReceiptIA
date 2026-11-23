@@ -6,7 +6,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
   canvasTex, roundRect, rng, azulejoTextures, cabinetTexture, stoneTexture, postItTexture, calendarTexture,
-  receiptTextures,
+  receiptTextures, orangeTextures,
 } from './textures.js';
 
 const W = 1920, H = 1080;
@@ -48,20 +48,31 @@ const camera = new THREE.PerspectiveCamera(35, W / H, 0.01, 20);
 // Reflexos realistas (porta lacada, puxador de metal, azulejos vidrados): ambiente "sala" do three.js.
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.5;
+scene.environmentIntensity = 0.38;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0xb9c8d0, 0.95));
-const key = new THREE.DirectionalLight(0xfff6ec, 2.3);
+// Luz geral da cozinha: um pouco fria, para contrastar com o candeeiro quente.
+scene.add(new THREE.HemisphereLight(0xeef4ff, 0xb9c8d0, 0.55));
+// Luz suave de teto/janela, SEM sombras (dá volume e não pesa no render).
+const key = new THREE.DirectionalLight(0xf4f7ff, 0.5);
 key.position.set(0.7, 1.1, 1.3);
-key.castShadow = true;
-key.shadow.mapSize.set(2048, 2048);
-key.shadow.camera.left = -0.5; key.shadow.camera.right = 0.7; key.shadow.camera.top = 0.5; key.shadow.camera.bottom = -0.5;
-key.shadow.camera.near = 0.5; key.shadow.camera.far = 3;
-key.shadow.radius = 6; key.shadow.bias = -0.0004;
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xe8f7ef, 0.7);
+const fill = new THREE.DirectionalLight(0xe8f7ef, 0.3);
 fill.position.set(-1, 0.3, 0.9);
 scene.add(fill);
+
+// ---------- Candeeiro pendente (luz quente, ~3000 K) ----------
+// É a fonte de luz principal e a ÚNICA que faz sombras: um círculo de luz quente
+// na porta do frigorífico, à volta do robô.
+const WARM = 0xffd2a6;
+const BULB = v3(0.0, 0.3, 0.4);
+const lamp = new THREE.SpotLight(WARM, 1.4, 0, Math.PI / 3.6, 0.8, 2);
+lamp.position.copy(BULB);
+lamp.target.position.set(-0.01, -0.04, 0);
+lamp.castShadow = true;
+lamp.shadow.mapSize.set(2048, 2048);
+lamp.shadow.camera.near = 0.05; lamp.shadow.camera.far = 3;
+lamp.shadow.radius = 6; lamp.shadow.bias = -0.0004;
+scene.add(lamp, lamp.target);
 
 // ---------- Cozinha: parede de azulejos, frigorífico, bancada e armários ----------
 const FLOOR = -1.42;       // o robô (y = 0) fica a ~1,45 m do chão
@@ -83,6 +94,30 @@ function buildKitchen() {
   wall.position.set(0.6, FLOOR + wallH / 2, WALL_Z);
   wall.receiveShadow = true;
   scene.add(wall);
+
+  // Chão de madeira clara (tábuas com veios).
+  const planks = canvasTex(1024, 1024, (g, w, h) => {
+    const r = rng(55), rows = 8, ph = h / rows;
+    for (let i = 0; i < rows; i++) {
+      for (let x = -r() * 400; x < w; x += 300 + r() * 220) {
+        const l = 66 + r() * 8;
+        g.fillStyle = `hsl(32, 38%, ${l}%)`; g.fillRect(x, i * ph, 520, ph);
+        g.strokeStyle = 'rgba(120,85,50,0.12)'; g.lineWidth = 2;
+        for (let k = 0; k < 7; k++) { // veios da madeira
+          const y = i * ph + 8 + r() * (ph - 16);
+          g.beginPath(); g.moveTo(x, y); g.bezierCurveTo(x + 120, y + (r() - 0.5) * 10, x + 300, y + (r() - 0.5) * 10, x + 520, y); g.stroke();
+        }
+        g.fillStyle = 'rgba(90,60,35,0.35)'; g.fillRect(x, i * ph, 3, ph);
+      }
+      g.fillStyle = 'rgba(90,60,35,0.35)'; g.fillRect(0, i * ph, w, 3);
+    }
+  });
+  planks.wrapS = planks.wrapT = THREE.RepeatWrapping; planks.repeat.set(3, 2);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshStandardMaterial({ map: planks, roughness: 0.55 }));
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0.6, FLOOR, WALL_Z + 1.5);
+  floor.receiveShadow = true;
+  scene.add(floor);
 
   // Frigorífico branco lacado: corpo, porta, junta de borracha, gaveta do congelador.
   // Rugosidade com dedadas perto do puxador: o verniz brilha menos onde se toca.
@@ -119,16 +154,36 @@ function buildKitchen() {
     color: 0xf7f8f9, map: falloff, roughness: 1, roughnessMap: roughMap, clearcoat: 1, clearcoatRoughness: 1,
     clearcoatRoughnessMap: coatMap, envMapIntensity: 2.4,
   });
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe3e7ea, roughness: 0.45 });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdde2e6, roughness: 0.45 });
   const rubber = new THREE.MeshStandardMaterial({ color: 0x3a3f44, roughness: 0.8 });
   const metal = new THREE.MeshStandardMaterial({ color: 0xd2d7db, metalness: 1, roughness: 0.3 });
-  const top = 0.55;
-  box(1.19, top - FLOOR, 0.6, bodyMat, 0.12, (top + FLOOR) / 2, WALL_Z + 0.32, 0.02);
-  const door = box(1.15, 1.56, 0.05, lacquer, 0.12, -0.28, -0.031, 0.025);
+  // Corpo do frigorífico: a frente fica em z = -0,06, encostada à junta e à porta
+  // (antes havia 4 cm de ar e a porta parecia flutuar).
+  const top = 0.55, BODY_FRONT = -0.06, BODY_D = 0.6;
+  box(1.19, top - FLOOR, BODY_D, bodyMat, 0.12, (top + FLOOR) / 2, BODY_FRONT - BODY_D / 2, 0.02);
+  const door = box(1.15, 1.56, 0.05, lacquer, 0.12, -0.28, -0.031, 0.025);   // de z -0,056 a -0,006
   door.castShadow = false;
-  box(1.162, 1.572, 0.006, rubber, 0.12, -0.28, -0.058, 0.02);            // junta
-  box(1.15, 0.31, 0.05, lacquer, 0.12, -1.245, -0.031, 0.02);             // gaveta
-  box(1.162, 0.322, 0.006, rubber, 0.12, -1.245, -0.058, 0.02);
+  box(1.162, 1.572, 0.004, rubber, 0.12, -0.28, -0.058, 0.02);              // junta: entre o corpo e a porta
+  box(1.15, 0.31, 0.05, lacquer, 0.12, -1.245, -0.031, 0.02);               // gaveta do congelador
+  box(1.162, 0.322, 0.004, rubber, 0.12, -1.245, -0.058, 0.02);
+  // Dobradiças de metal no lado DIREITO (o puxador está à esquerda): seguram a porta ao corpo.
+  const hingeX = 0.12 + 0.575 - 0.03;
+  box(0.06, 0.012, 0.07, metal, hingeX, 0.506, -0.05, 0.003);               // em cima da porta
+  box(0.06, 0.018, 0.07, metal, hingeX, -1.075, -0.05, 0.003);              // entre a porta e a gaveta
+  for (const y of [0.514, -1.064]) {                                         // tampas dos eixos
+    const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.012, 20), metal);
+    pin.position.set(hingeX + 0.012, y, -0.028); pin.castShadow = true; scene.add(pin);
+  }
+  // Grelha de ventilação escura na faixa do corpo acima da porta.
+  const grille = new THREE.MeshStandardMaterial({
+    roughness: 0.7,
+    map: canvasTex(1024, 32, (g, w, h) => {
+      g.fillStyle = '#3d4348'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#23272b';
+      for (let x = 8; x < w; x += 14) g.fillRect(x, 6, 7, h - 12);
+    }),
+  });
+  box(1.1, 0.026, 0.004, grille, 0.12, 0.527, BODY_FRONT + 0.002, 0.002);
   // Puxadores de alumínio com apoios.
   box(0.024, 0.62, 0.022, metal, -0.405, -0.15, 0.036, 0.01);
   for (const y of [-0.43, 0.13]) box(0.016, 0.022, 0.034, metal, -0.405, y, 0.012, 0.004);
@@ -143,22 +198,34 @@ function buildKitchen() {
   box(len, 0.80, 0.58, lower, cx, (FLOOR + 0.03 - 0.57) / 2 + 0.0, WALL_Z + 0.29, 0.004);
   const upper = new THREE.MeshStandardMaterial({ map: cabinetTexture(4, 1024, 360, 'bottom'), roughness: 0.5 });
   box(len, 0.72, 0.34, upper, cx, 0.62, WALL_Z + 0.17, 0.004);
-  // Vaso com planta e taça com laranjas em cima da bancada.
-  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.045, 0.12, 24), new THREE.MeshStandardMaterial({ color: 0xc46a45, roughness: 0.7 }));
-  pot.position.set(right + 0.3, -0.47, WALL_Z + 0.22); pot.castShadow = true; scene.add(pot);
-  const leaf = new THREE.MeshStandardMaterial({ color: 0x3f8f4f, roughness: 0.6 });
-  [[0, 0.1, 0, 0.05], [0.04, 0.14, 0.02, 0.04], [-0.04, 0.13, -0.01, 0.045], [0.01, 0.18, -0.02, 0.035]].forEach(([x, y, z, r]) => {
-    const l = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), leaf);
-    l.scale.set(1, 1.3, 1); l.position.set(pot.position.x + x, pot.position.y + y, pot.position.z + z); scene.add(l);
-  });
+  // Taça de cerâmica com laranjas em cima da bancada.
   const bowl = new THREE.Mesh(new THREE.SphereGeometry(0.11, 32, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
     new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.25, clearcoat: 1, side: THREE.DoubleSide }));
-  bowl.position.set(right + 0.75, -0.43, WALL_Z + 0.3); scene.add(bowl);
-  const orange = new THREE.MeshStandardMaterial({ color: 0xf29a2e, roughness: 0.55 });
-  [[0, 0], [0.06, 0.02], [-0.05, 0.03], [0.01, -0.06], [0.0, 0.0, 0.05]].forEach(([x, z, y = 0]) => {
-    const o = new THREE.Mesh(new THREE.SphereGeometry(0.038, 20, 14), orange);
-    o.position.set(bowl.position.x + x, -0.49 + y + 0.03, bowl.position.z + z); o.castShadow = true; scene.add(o);
+  bowl.position.set(right + 0.32, -0.43, WALL_Z + 0.3); scene.add(bowl);
+  // Laranjas: casca porosa, cada uma com o seu tom, ligeiramente achatadas e rodadas ao acaso,
+  // com um pé verde-acastanhado e um pequeno cálice em estrela.
+  const orangeGeo = new THREE.SphereGeometry(0.038, 48, 32);
+  const stemMat = new THREE.MeshStandardMaterial({ color: 0x6b5a2e, roughness: 0.8 });
+  const calyxMat = new THREE.MeshStandardMaterial({ color: 0x5f7a32, roughness: 0.7 });
+  const spin = rng(2026);
+  [[0, 0], [0.06, 0.02], [-0.05, 0.03], [0.01, -0.06], [0.0, 0.0, 0.05]].forEach(([x, z, y = 0], i) => {
+    const tex = orangeTextures(100 + i);
+    const o = new THREE.Mesh(orangeGeo, new THREE.MeshPhysicalMaterial({
+      map: tex.map, bumpMap: tex.bump, bumpScale: 2, roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.35,
+    }));
+    o.scale.set(1, 0.93, 1);
+    o.rotation.set((spin() - 0.5) * 1.6, spin() * Math.PI * 2, (spin() - 0.5) * 1.6);
+    const calyx = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.0015, 5), calyxMat);
+    calyx.position.y = 0.0378;
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0028, 0.006, 8), stemMat);
+    stem.position.y = 0.041;
+    o.add(calyx, stem);
+    o.position.set(bowl.position.x + x, -0.49 + y + 0.03, bowl.position.z + z);
+    o.castShadow = true; o.receiveShadow = true;
+    scene.add(o);
   });
+
+  buildLamp();
 
   // Coisas presas na porta: post-it (lista de compras "de memória"), calendário com íman, ímanes soltos.
   const postGeo = new THREE.PlaneGeometry(0.076, 0.076, 1, 10);
@@ -183,6 +250,53 @@ function buildKitchen() {
   magnet(0xd94b4b, 0.167, 0.182);
   magnet(0x1e9e5a, -0.2, 0.03);
   magnet(0x2a5aa8, -0.3, 0.06);
+}
+
+// Candeeiro pendente: abajur em cúpula (esmalte branco por fora, latão por dentro),
+// lâmpada acesa com brilho quente e o fio a subir até ao teto (fora do enquadramento).
+function buildLamp() {
+  const profile = [];
+  for (let i = 0; i <= 16; i++) {
+    const a = (i / 16) * (Math.PI / 2);
+    profile.push(new THREE.Vector2(0.014 + Math.sin(a) * 0.1, Math.cos(a) * 0.075)); // do topo até à borda
+  }
+  const shadeGeo = new THREE.LatheGeometry(profile, 48);
+  const outer = new THREE.MeshPhysicalMaterial({ color: 0xf5f2ec, roughness: 0.3, clearcoat: 0.8, side: THREE.FrontSide });
+  const inner = new THREE.MeshStandardMaterial({ color: 0xd9a85b, metalness: 1, roughness: 0.35, side: THREE.BackSide,
+    emissive: 0x5a3a12, emissiveIntensity: 0.6 });
+  const shade = new THREE.Group();
+  shade.add(new THREE.Mesh(shadeGeo, outer), new THREE.Mesh(shadeGeo, inner));
+  shade.position.set(BULB.x, BULB.y - 0.02, BULB.z);
+  scene.add(shade);
+
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.026, 32, 20),
+    new THREE.MeshStandardMaterial({ color: 0xfff4e0, emissive: 0xffe2b8, emissiveIntensity: 3 }));
+  bulb.position.copy(BULB).add(v3(0, -0.004, 0));
+  scene.add(bulb);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: canvasTex(256, 256, (g, w, h) => {
+      const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+      gr.addColorStop(0, 'rgba(255,236,200,0.95)'); gr.addColorStop(0.3, 'rgba(255,197,143,0.35)'); gr.addColorStop(1, 'rgba(255,170,90,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    }),
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  glow.scale.set(0.24, 0.24, 1);
+  glow.position.copy(BULB).add(v3(0, -0.03, 0));
+  scene.add(glow);
+  // Luz fraquinha dentro do abajur, só para o latão brilhar (sem sombras).
+  const innerLight = new THREE.PointLight(WARM, 0.02, 0.3, 2);
+  innerLight.position.copy(BULB);
+  scene.add(innerLight);
+
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, 1.2, 8),
+    new THREE.MeshStandardMaterial({ color: 0x1d2226, roughness: 0.6 }));
+  cord.position.set(BULB.x, BULB.y + 0.055 + 0.6, BULB.z);
+  scene.add(cord);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.022, 24),
+    new THREE.MeshStandardMaterial({ color: 0xd9a85b, metalness: 1, roughness: 0.35 }));
+  cap.position.set(BULB.x, BULB.y + 0.062, BULB.z);
+  scene.add(cap);
 }
 
 // ---------- Texturas auxiliares ----------
@@ -368,7 +482,7 @@ document.querySelectorAll('.m').forEach((m) => m.appendChild(mascot.content.clon
 function cardsAt(t) {
   // Abertura: logótipo 0–1,9 s, depois desaparece e revela a cena.
   const inK = easeOut(prog(t, 0.15, 0.9));
-  const outK = easeOut(prog(t, 1.5, 2.2));
+  const outK = easeOut(prog(t, 1.25, 1.85));
   intro.style.opacity = (Math.min(1, prog(t, 0, 0.01) + 1) * (1 - outK)).toFixed(3);
   intro.querySelector('.brand').style.transform = `translateY(${(1 - inK) * 30}px) scale(${0.95 + 0.05 * inK})`;
   intro.querySelector('.brand').style.opacity = inK;
@@ -461,6 +575,12 @@ function renderFrame(t) {
 }
 
 window.renderFrame = renderFrame;
+// Só para as pré-visualizações: olhar de perto para um ponto da cena (ex.: as laranjas).
+window.debugLook = (pos, tgt) => {
+  camera.position.set(...pos); camera.lookAt(...tgt);
+  document.getElementById('caption').style.opacity = 0;
+  renderer.render(scene, camera);
+};
 window.sceneReady = (async () => {
   await document.fonts.ready;
   await Promise.all([document.fonts.load('600 46px Inter'), document.fonts.load('800 46px Inter'),

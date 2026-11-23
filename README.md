@@ -22,7 +22,8 @@ Com essas compras, a app mostra estatísticas, avisa quando a comida está a est
 
 [`video/ReceiptAI_demo_30s.mp4`](video/ReceiptAI_demo_30s.mp4): vídeo 3D de 30 s feito com o modelo do robô (`ReceiptAI_montado.glb`) e com os ecrãs reais da app.
 
-- **Cenário:** uma cozinha com azulejo português e um frigorífico branco lacado, com post-it, calendário e ímanes.
+- **Cenário:** uma cozinha com azulejo português, chão de madeira e um frigorífico branco lacado (porta com dobradiças, post-it, calendário e ímanes).
+- **Luz:** um candeeiro pendente de luz quente ilumina o robô; numa taça há laranjas com casca porosa.
 - **Recibo:** em papel térmico, curvo e dobrado. Passa pelos rolos do robô e sai por baixo.
 - **Texturas:** são todas desenhadas em código, em [`video/textures.js`](video/textures.js).
 

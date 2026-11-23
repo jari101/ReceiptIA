@@ -169,6 +169,50 @@ export function stoneTexture() {
 }
 
 // ---------------------------------------------------------------------------
+// Laranja: casca com poros, cor variável e o pé verde-acastanhado no topo.
+// A textura é "equiretangular" (como um mapa-mundo): a linha de cima do canvas
+// fica no polo de cima da esfera, onde está o pé.
+// ---------------------------------------------------------------------------
+export function orangeTextures(seed) {
+  const w = 512, h = 256, rnd = rng(seed);
+  const color = makeCanvas(w, h), g = color.getContext('2d');
+  const bump = makeCanvas(w, h), b = bump.getContext('2d');
+  const hue = 26 + rnd() * 9; // cada laranja com um tom ligeiramente diferente
+
+  g.fillStyle = `hsl(${hue}, 92%, 51%)`; g.fillRect(0, 0, w, h);
+  // Manchas suaves: zonas mais amarelas (onde apanhou sol) e mais avermelhadas.
+  for (let i = 0; i < 70; i++) {
+    const x = rnd() * w, y = rnd() * h, r = 12 + rnd() * 46;
+    const dh = (rnd() - 0.5) * 14, l = 44 + rnd() * 16;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `hsla(${hue + dh}, 90%, ${l}%, 0.35)`); gr.addColorStop(1, `hsla(${hue + dh}, 90%, ${l}%, 0)`);
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // Poros da casca: pontinhos escuros (cor) e covinhas (relevo).
+  b.fillStyle = '#808080'; b.fillRect(0, 0, w, h);
+  for (let i = 0; i < 14000; i++) {
+    const x = rnd() * w, y = rnd() * h, s = 0.8 + rnd() * 1.6;
+    g.globalAlpha = 0.18 + rnd() * 0.25;
+    g.fillStyle = rnd() < 0.75 ? `hsl(${hue - 4}, 85%, 36%)` : `hsl(${hue + 8}, 100%, 70%)`;
+    g.fillRect(x, y, s, s);
+    b.globalAlpha = 0.5 + rnd() * 0.5;
+    b.fillStyle = '#3c3c3c';
+    b.beginPath(); b.arc(x, y, s, 0, Math.PI * 2); b.fill();
+  }
+  g.globalAlpha = 1; b.globalAlpha = 1;
+  // Pé verde-acastanhado no polo de cima, com a casca um pouco mais escura à volta.
+  const top = g.createLinearGradient(0, 0, 0, 26);
+  top.addColorStop(0, '#5b5a2a'); top.addColorStop(0.35, '#7a7d32'); top.addColorStop(1, 'rgba(160,90,20,0)');
+  g.fillStyle = top; g.fillRect(0, 0, w, 26);
+  // "Umbigo" no polo de baixo.
+  const bottom = g.createLinearGradient(0, h - 14, 0, h);
+  bottom.addColorStop(0, 'rgba(150,80,10,0)'); bottom.addColorStop(1, 'rgba(120,70,20,0.9)');
+  g.fillStyle = bottom; g.fillRect(0, h - 14, w, 14);
+
+  return { map: toTexture(color), bump: toTexture(bump, { srgb: false }) };
+}
+
+// ---------------------------------------------------------------------------
 // Post-it com a lista de compras feita "de memória" (o problema que o ReceiptAI resolve).
 // ---------------------------------------------------------------------------
 export function postItTexture() {
