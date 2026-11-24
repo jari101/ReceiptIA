@@ -15,8 +15,10 @@ android {
         applicationId = "pt.receiptai.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        // A versão vem do workflow de release (-PappVersionName=0.1.0 -PappVersionCode=7).
+        // Sem esses valores (ex.: no Android Studio) usa estes por defeito.
+        versionCode = (project.findProperty("appVersionCode") as String?)?.toInt() ?: 1
+        versionName = (project.findProperty("appVersionName") as String?) ?: "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -24,6 +26,9 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Assinado com a chave de TESTE (debug): dá para instalar no telemóvel,
+            // mas não serve para a Play Store. Para isso, mais tarde, usa-se uma chave própria.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

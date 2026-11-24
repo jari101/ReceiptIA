@@ -1,0 +1,86 @@
+# Compila a app, corre os testes e publica um release no GitHub com o APK.
+# Corre quando se faz push de uma tag (ex.: v0.1.0) ou com o botão "Run workflow" no separador Actions.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versão (ex.: 0.1.1) — cria a tag v<versão>'
+        required: true
+      prerelease:
+        description: 'Marcar como pré-lançamento (beta)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # necessário para criar o release e a tag
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versão
+        id: v
+        shell: bash
+        env:
+          # Passados por variáveis de ambiente (e não colados no script) por segurança.
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="$INPUT_VERSION"
+            PRE="$INPUT_PRERELEASE"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+            # Versões 0.x são beta.
+            if [[ "$VERSION" == 0.* ]]; then PRE=true; else PRE=false; fi
+          fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Versão inválida: '$VERSION' (usa o formato 1.2.3)"; exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRE" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Testes
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Compilar o APK
+        run: >
+          ./gradlew --no-daemon assembleRelease
+          -PappVersionName=${{ steps.v.outputs.version }}
+          -PappVersionCode=${{ github.run_number }}
+
+      - name: Preparar os ficheiros
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/ReceiptAI-${{ steps.v.outputs.tag }}.apk"
+          cp video/ReceiptAI_demo_30s.mp4 dist/ReceiptAI-video-30s.mp4
+          (cd docs && zip -r ../dist/ReceiptAI-recibos-exemplo.zip exemplos)
+          ls -la dist
+
+      - name: Publicar o release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PRE_FLAG=""
+          if [ "${{ steps.v.outputs.prerelease }}" = "true" ]; then PRE_FLAG="--prerelease"; fi
+          gh release create "${{ steps.v.outputs.tag }}" dist/* \
+            --target "$GITHUB_SHA" \
+            --title "ReceiptAI ${{ steps.v.outputs.version }}" \
+            --notes-file .github/release-notes.md \
+            $PRE_FLAG
