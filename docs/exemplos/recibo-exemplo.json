@@ -1,0 +1,11 @@
+{
+  "formato": "receiptai-v1",
+  "loja": "Mercado do Bairro",
+  "data": "2026-11-18",
+  "total": 6.25,
+  "itens": [
+    { "nome": "Leite meio gordo 1L", "quantidade": 2, "preco_unitario": 0.89, "total": 1.78 },
+    { "nome": "Bananas", "quantidade": 0.85, "preco_unitario": 1.29, "total": 1.10 },
+    { "nome": "Café moído 250g", "quantidade": 1, "preco_unitario": "3,37" }
+  ]
+}

@@ -1,0 +1,20 @@
+MERCADO DO BAIRRO
+Rua das Flores, 12 - 1000-100 Lisboa
+NIF: 500000000
+Fatura Simplificada FS 2026/1234
+18-11-2026 18:42
+LEITE MEIO GORDO 1L          C    0,89
+IOGURTE NATURAL 4X125G
+   2 X 1,49                   C    2,98
+BANANA
+   0,850 kg x 1,19 EUR/kg     C    1,01
+PAO DE FORMA INTEGRAL        C    1,49
+OVOS CLASSE M 12UN           C    2,59
+DESC. PROMOCAO                   -0,30
+ATUM EM LATA 3X80G           C    3,87
+DETERGENTE LOICA             A    1,89
+SUBTOTAL                          14,42
+TOTAL                             14,42
+MULTIBANCO                        14,42
+IVA C 6%   base 11,93  iva 0,72
+Obrigado e volte sempre!

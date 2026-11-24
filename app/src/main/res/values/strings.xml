@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ReceiptAI</string>
+    <string name="tagline">O teu frigorífico sabe o que falta.</string>
+
+    <!-- Geral -->
+    <string name="add">Adicionar</string>
+    <string name="all">Todas</string>
+    <string name="back">Voltar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="clear">Limpar</string>
+    <string name="delete">Apagar</string>
+    <string name="ok">OK</string>
+    <string name="save">Guardar</string>
+    <string name="total">Total</string>
+    <string name="expanded">aberto</string>
+    <string name="collapsed">fechado</string>
+
+    <!-- Separadores -->
+    <string name="tab_home">Início</string>
+    <string name="tab_stats">Estatísticas</string>
+    <string name="tab_records">Registos</string>
+    <string name="tab_recipes">Receitas</string>
+    <string name="tab_pantry">Despensa</string>
+
+    <!-- Início -->
+    <string name="home_import_title">Importar recibo</string>
+    <string name="home_import_subtitle">PDF, foto, link, CSV, JSON ou XML</string>
+    <string name="home_empty_title">Ainda não há compras</string>
+    <string name="home_empty_message">Importa o teu primeiro recibo ou experimenta a app com 3 meses de compras de exemplo.</string>
+    <string name="home_load_demo">Experimentar com dados de exemplo</string>
+    <string name="home_spent_this_month">Gasto neste mês</string>
+    <string name="home_alerts_title">Alertas de validade</string>
+    <string name="home_see_pantry">Ver despensa</string>
+    <string name="home_no_alerts">Nada a expirar nos próximos dias.</string>
+    <string name="home_last_purchase">Última compra</string>
+
+    <!-- Importar -->
+    <string name="import_sheet_title">Como queres adicionar o recibo?</string>
+    <string name="import_file">Escolher ficheiro</string>
+    <string name="import_file_hint">PDF, imagem, CSV, JSON, XML (e-fatura), HTML ou TXT</string>
+    <string name="import_camera">Digitalizar com a câmara</string>
+    <string name="import_camera_hint">Tira uma foto ao recibo de papel</string>
+    <string name="import_link">Colar link (URL)</string>
+    <string name="import_link_hint">Recibo online: PDF, imagem ou página web</string>
+    <string name="import_link_label">Endereço do recibo</string>
+    <string name="import_manual">Escrever à mão</string>
+    <string name="import_manual_hint">Adicionar os produtos manualmente</string>
+    <string name="import_loading">A ler o recibo…</string>
+    <string name="import_error_title">Não foi possível ler o recibo</string>
+
+    <!-- Rever -->
+    <string name="review_title">Rever recibo</string>
+    <string name="review_hint">Lido a partir de %1$s. Confirma os produtos e os preços antes de guardar.</string>
+    <string name="review_receipt_n">Recibo %1$d de %2$d</string>
+    <string name="review_store">Loja</string>
+    <string name="review_date">Data (dd/mm/aaaa)</string>
+    <string name="review_product">Produto</string>
+    <string name="review_qty">Qtd</string>
+    <string name="review_add_item">Adicionar produto</string>
+    <string name="review_no_items">Não encontrei produtos — adiciona-os à mão.</string>
+    <string name="review_printed_total">O recibo diz %1$s — confirma os preços.</string>
+    <string name="review_show_text">Ver o texto lido</string>
+    <string name="review_hide_text">Esconder o texto lido</string>
+
+    <!-- Estatísticas -->
+    <string name="stats_title">Estatísticas</string>
+    <string name="stats_subtitle">Quanto gastas e o que compras mais</string>
+    <string name="period_week">Semana</string>
+    <string name="period_month">Mês</string>
+    <string name="period_year">Ano</string>
+    <string name="stats_previous">Período anterior</string>
+    <string name="stats_next">Período seguinte</string>
+    <string name="stats_spent_week">Gasto nesta semana</string>
+    <string name="stats_spent_month">Gasto neste mês</string>
+    <string name="stats_spent_year">Gasto neste ano</string>
+    <string name="stats_change_week">%1$s%% vs. semana anterior</string>
+    <string name="stats_change_month">%1$s%% vs. mês anterior</string>
+    <string name="stats_change_year">%1$s%% vs. ano anterior</string>
+    <string name="stats_average">média %1$s</string>
+    <string name="stats_top_title">Mais compradas</string>
+    <string name="stats_quantity">qtd. %1$s</string>
+    <string name="stats_empty_title">Sem compras neste período</string>
+    <string name="stats_empty_message">Muda de período ou importa recibos.</string>
+
+    <!-- Registos -->
+    <string name="records_title">Registos</string>
+    <string name="records_search">Procurar loja ou produto</string>
+    <string name="records_empty_title">Ainda não há registos</string>
+    <string name="records_empty_message">As compras aparecem aqui depois de importares um recibo.</string>
+    <string name="records_no_results">Sem resultados</string>
+    <string name="records_no_results_message">Nenhuma compra tem essa loja ou produto.</string>
+    <string name="records_delete">Apagar compra</string>
+    <string name="records_delete_title">Apagar esta compra?</string>
+    <string name="records_delete_message">A compra em %1$s de %2$s e os seus produtos vão ser apagados.</string>
+
+    <!-- Receitas -->
+    <string name="recipes_title">Receitas</string>
+    <string name="recipes_subtitle">Ideias com o que tens em casa</string>
+    <string name="recipes_what_can_i_cook">O que posso cozinhar?</string>
+    <string name="recipes_show_all">Ver todas as receitas</string>
+    <string name="recipes_cook_result">%1$d receitas com o que tens em casa (%2$d ingredientes na despensa).</string>
+    <string name="recipes_diet">Dieta</string>
+    <string name="recipes_have_of">Tens %1$d de %2$d ingredientes</string>
+    <string name="recipes_have">Tens</string>
+    <string name="recipes_missing">Falta</string>
+    <string name="recipes_ingredients">Ingredientes</string>
+    <string name="recipes_steps">Passos</string>
+    <string name="recipes_add_missing">Adicionar o que falta à lista</string>
+    <string name="recipes_new">Nova receita</string>
+    <string name="recipes_delete">Apagar receita</string>
+    <string name="recipes_empty_title">Nenhuma receita</string>
+    <string name="recipes_empty_cook">Ainda não tens ingredientes suficientes. Importa um recibo ou vê todas as receitas.</string>
+    <string name="recipes_empty_filters">Experimenta tirar alguns filtros.</string>
+    <string name="meal_breakfast">Pequeno-almoço</string>
+    <string name="meal_snack">Lanche</string>
+    <string name="meal_lunch">Almoço</string>
+    <string name="meal_dinner">Jantar</string>
+    <string name="diet_diabetic">Diabéticos</string>
+    <string name="diet_gym">Ginásio</string>
+    <string name="diet_gluten_free">Sem glúten</string>
+    <string name="diet_lactose_free">Sem lactose</string>
+    <string name="diet_vegetarian">Vegetariano</string>
+
+    <!-- Nova receita -->
+    <string name="new_recipe_title">Nova receita</string>
+    <string name="new_recipe_name">Nome da receita</string>
+    <string name="new_recipe_meal">Tipo de refeição</string>
+    <string name="new_recipe_minutes">Tempo (min)</string>
+    <string name="new_recipe_ingredient">Ingrediente</string>
+    <string name="new_recipe_amount">Quantidade</string>
+    <string name="new_recipe_add_ingredient">Adicionar ingrediente</string>
+    <string name="new_recipe_step">Passo %1$d</string>
+    <string name="new_recipe_add_step">Adicionar passo</string>
+    <string name="new_recipe_save">Guardar receita</string>
+    <string name="new_recipe_error">Preenche o nome, pelo menos um ingrediente e um passo.</string>
+
+    <!-- Despensa -->
+    <string name="pantry_title">Despensa</string>
+    <string name="pantry_subtitle">Validades e lista de compras</string>
+    <string name="pantry_tab_ingredients">Ingredientes</string>
+    <string name="pantry_tab_shopping">Lista de compras</string>
+    <string name="pantry_empty_title">A despensa está vazia</string>
+    <string name="pantry_empty_message">Os alimentos dos recibos importados aparecem aqui com a validade estimada.</string>
+    <string name="pantry_edit_date">Mudar data de validade</string>
+    <string name="pantry_mark_used">Marcar como usado</string>
+    <string name="pantry_expiry_of">Validade: %1$s</string>
+    <string name="pantry_add_title">Adicionar ingrediente</string>
+    <string name="pantry_add_label">Nome do ingrediente</string>
+    <string name="expires_today">Expira hoje</string>
+    <string name="expires_tomorrow">Expira amanhã</string>
+
+    <!-- Lista de compras -->
+    <string name="shopping_suggestions">Sugestões automáticas</string>
+    <string name="shopping_suggestions_hint">Produtos que costumas comprar e que já devem estar a acabar.</string>
+    <string name="shopping_add_all">Adicionar todas</string>
+    <string name="shopping_every_days">Compras a cada ~%1$d dias · última há %2$d dias</string>
+    <string name="shopping_to_buy">A comprar</string>
+    <string name="shopping_new_item">Novo produto</string>
+    <string name="shopping_auto">Sugerido automaticamente</string>
+    <string name="shopping_clear_checked">Limpar comprados</string>
+    <string name="shopping_empty_title">Lista vazia</string>
+    <string name="shopping_empty_message">Adiciona produtos ou usa as sugestões automáticas.</string>
+
+    <!-- Notificações -->
+    <string name="notif_channel_name">Validade dos alimentos</string>
+    <string name="notif_channel_description">Avisos quando um alimento está a chegar ao fim da validade</string>
+
+    <plurals name="notif_expiring_title">
+        <item quantity="one">%d produto está a expirar</item>
+        <item quantity="many">%d produtos estão a expirar</item>
+        <item quantity="other">%d produtos estão a expirar</item>
+    </plurals>
+    <plurals name="expired_days_ago">
+        <item quantity="one">Expirou há %d dia</item>
+        <item quantity="many">Expirou há %d dias</item>
+        <item quantity="other">Expirou há %d dias</item>
+    </plurals>
+    <plurals name="expires_in_days">
+        <item quantity="one">Expira em %d dia</item>
+        <item quantity="many">Expira em %d dias</item>
+        <item quantity="other">Expira em %d dias</item>
+    </plurals>
+    <plurals name="ingredients_count">
+        <item quantity="one">%d ingrediente em casa</item>
+        <item quantity="many">%d ingredientes em casa</item>
+        <item quantity="other">%d ingredientes em casa</item>
+    </plurals>
+    <plurals name="products_count">
+        <item quantity="one">%d produto</item>
+        <item quantity="many">%d produtos</item>
+        <item quantity="other">%d produtos</item>
+    </plurals>
+    <plurals name="purchases_count">
+        <item quantity="one">%d compra</item>
+        <item quantity="many">%d compras</item>
+        <item quantity="other">%d compras</item>
+    </plurals>
+    <plurals name="purchases_saved">
+        <item quantity="one">%d compra guardada</item>
+        <item quantity="many">%d compras guardadas</item>
+        <item quantity="other">%d compras guardadas</item>
+    </plurals>
+    <plurals name="receipts_saved">
+        <item quantity="one">Recibo guardado!</item>
+        <item quantity="many">%d recibos guardados!</item>
+        <item quantity="other">%d recibos guardados!</item>
+    </plurals>
+    <plurals name="times_bought">
+        <item quantity="one">comprado %d vez</item>
+        <item quantity="many">comprado %d vezes</item>
+        <item quantity="other">comprado %d vezes</item>
+    </plurals>
+</resources>
