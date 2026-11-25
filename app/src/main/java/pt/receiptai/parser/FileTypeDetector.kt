@@ -6,12 +6,17 @@ package pt.receiptai.parser
  */
 object FileTypeDetector {
 
+    /** Estes ficheiros também são zips por dentro, mas não são recibos. */
+    private val zipBasedDocuments = setOf("docx", "xlsx", "pptx", "odt", "ods", "odp", "epub", "apk", "jar")
+
     fun detect(mimeType: String?, fileName: String?, bytes: ByteArray): ReceiptFileType? {
+        val ext = fileName?.substringAfterLast('.', "")?.lowercase().orEmpty()
+        if (ext in zipBasedDocuments) return null
         sniff(bytes)?.let { return it } // os bytes não mentem: um PDF começa sempre por "%PDF"
         val mime = mimeType?.lowercase()?.substringBefore(';')?.trim().orEmpty()
-        val ext = fileName?.substringAfterLast('.', "")?.lowercase().orEmpty()
         return when {
             mime == "application/pdf" || ext == "pdf" -> ReceiptFileType.PDF
+            mime in setOf("application/zip", "application/x-zip-compressed") || ext == "zip" -> ReceiptFileType.ZIP
             mime.startsWith("image/") || ext in setOf("jpg", "jpeg", "png", "webp", "heic", "bmp") -> ReceiptFileType.IMAGEM
             mime.contains("csv") || ext == "csv" -> ReceiptFileType.CSV
             mime.contains("json") || ext == "json" -> ReceiptFileType.JSON
@@ -29,6 +34,7 @@ object FileTypeDetector {
             starts(0x25, 0x50, 0x44, 0x46) -> ReceiptFileType.PDF // %PDF
             starts(0xFF, 0xD8, 0xFF) -> ReceiptFileType.IMAGEM // JPEG
             starts(0x89, 0x50, 0x4E, 0x47) -> ReceiptFileType.IMAGEM // PNG
+            starts(0x50, 0x4B, 0x03, 0x04) || starts(0x50, 0x4B, 0x05, 0x06) -> ReceiptFileType.ZIP // "PK" (zip com ficheiros ou vazio)
             starts(0x52, 0x49, 0x46, 0x46) && bytes.size > 11 && String(bytes, 8, 4) == "WEBP" -> ReceiptFileType.IMAGEM
             else -> null
         }

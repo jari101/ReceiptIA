@@ -12,6 +12,7 @@ import androidx.core.graphics.createBitmap
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -24,14 +25,32 @@ import pt.receiptai.parser.ParsedReceipt
 import pt.receiptai.parser.ReceiptFileType
 import pt.receiptai.parser.ReceiptTextParser
 import pt.receiptai.parser.XmlReceiptParser
+import pt.receiptai.parser.ZipExtractor
 import java.io.File
 import java.util.concurrent.TimeUnit
 
 /** Resultado de uma importação. */
 sealed interface ImportResult {
-    data class Success(val receipts: List<ParsedReceipt>, val rawText: String, val type: ReceiptFileType) : ImportResult
+    data class Success(
+        val receipts: List<ParsedReceipt>,
+        val rawText: String,
+        val type: ReceiptFileType,
+        /** Só existe quando os recibos vieram de um ficheiro .zip. */
+        val zip: ZipSummary? = null,
+    ) : ImportResult
     data class Failure(val message: String) : ImportResult
 }
+
+/** Resumo de um .zip importado, para mostrar no ecrã Rever. */
+data class ZipSummary(
+    val zipName: String,
+    /** Ficheiros que estavam no zip (sem contar o lixo do macOS e do Windows). */
+    val fileCount: Int,
+    /** Ficheiros que deram pelo menos um recibo com produtos. */
+    val readCount: Int,
+    /** Nomes dos ficheiros que não eram recibos ou que não deu para ler. */
+    val ignored: List<String>,
+)
 
 /**
  * Recebe um recibo em QUALQUER formato suportado e devolve os dados lidos:
@@ -98,7 +117,61 @@ class ReceiptImporter(private val context: Context) {
 
     private suspend fun process(bytes: ByteArray, mime: String?, name: String?, imageUri: Uri? = null): ImportResult {
         val type = FileTypeDetector.detect(mime, name, bytes)
-            ?: return ImportResult.Failure("Formato não suportado ($mime). Usa PDF, imagem, CSV, JSON, XML, HTML ou TXT.")
+            ?: return ImportResult.Failure("Formato não suportado ($mime). Usa PDF, imagem, CSV, JSON, XML, HTML, TXT ou ZIP.")
+        if (type == ReceiptFileType.ZIP) return fromZip(bytes, name)
+        val result = readOne(type, bytes, imageUri)
+        return if (result is ImportResult.Success && result.receipts.isEmpty()) {
+            // Mesmo sem produtos encontrados, deixamos o utilizador preenchê-los à mão.
+            result.copy(receipts = listOf(ParsedReceipt("Loja desconhecida", null, emptyList())))
+        } else result
+    }
+
+    /**
+     * Um .zip com vários recibos: lê cada ficheiro de dentro com [readOne] e junta
+     * todos os recibos num só ecrã Rever. O que não for recibo fica na lista de ignorados.
+     */
+    private suspend fun fromZip(bytes: ByteArray, zipName: String?): ImportResult {
+        val name = zipName ?: "recibos.zip"
+        val contents = ZipExtractor().extract(bytes)
+        val fileCount = contents.files.size + contents.skipped.size
+        val receipts = mutableListOf<ParsedReceipt>()
+        val ignored = contents.skipped.toMutableList()
+        val rawText = StringBuilder()
+        var readCount = 0
+
+        for (file in contents.files) {
+            val type = FileTypeDetector.detect(null, file.name, file.bytes)
+            val result = if (type == null || type == ReceiptFileType.ZIP) null
+            else try {
+                readOne(type, file.bytes)
+            } catch (e: CancellationException) {
+                throw e // o utilizador saiu: paramos tudo
+            } catch (e: Exception) {
+                null // um ficheiro estragado não estraga o zip todo
+            }
+            // Só contam os recibos com produtos: um ficheiro sem nada que se aproveite é ignorado.
+            val found = (result as? ImportResult.Success)?.receipts.orEmpty().filter { it.items.isNotEmpty() }
+            if (result !is ImportResult.Success || found.isEmpty()) {
+                ignored += file.name
+                continue
+            }
+            readCount++
+            receipts += found
+            rawText.appendLine("===== ${file.name} =====").appendLine(result.rawText)
+        }
+
+        if (receipts.isEmpty()) {
+            return ImportResult.Failure(
+                if (fileCount == 0) "O ficheiro $name está vazio."
+                else "Não encontrei recibos dentro de $name. Usa PDF, imagem, CSV, JSON, XML, HTML ou TXT.",
+            )
+        }
+        val summary = ZipSummary(name, fileCount, readCount, ignored)
+        return ImportResult.Success(receipts, rawText.toString().trimEnd(), ReceiptFileType.ZIP, summary)
+    }
+
+    /** Lê UM ficheiro de que já sabemos o tipo. */
+    private suspend fun readOne(type: ReceiptFileType, bytes: ByteArray, imageUri: Uri? = null): ImportResult {
         val text by lazy { bytes.decodeToString().trimStart('\uFEFF') }
         return when (type) {
             ReceiptFileType.PDF -> fromPlainText(pdfText(bytes), type)
@@ -111,11 +184,7 @@ class ReceiptImporter(private val context: Context) {
             ReceiptFileType.CSV -> ImportResult.Success(CsvReceiptParser.parse(text), text, type)
             ReceiptFileType.JSON -> ImportResult.Success(JsonReceiptParser.parse(text), text, type)
             ReceiptFileType.XML -> ImportResult.Success(XmlReceiptParser.parse(text), text, type)
-        }.let { result ->
-            if (result is ImportResult.Success && result.receipts.isEmpty()) {
-                // Mesmo sem produtos encontrados, deixamos o utilizador preenchê-los à mão.
-                result.copy(receipts = listOf(ParsedReceipt("Loja desconhecida", null, emptyList())))
-            } else result
+            ReceiptFileType.ZIP -> ImportResult.Failure("Não abro um zip dentro de outro zip.")
         }
     }
 
@@ -168,6 +237,10 @@ class ReceiptImporter(private val context: Context) {
             is java.net.UnknownHostException -> "Sem ligação à Internet ou endereço errado."
             is java.net.SocketTimeoutException -> "O servidor demorou demasiado a responder."
             is TooLargeException -> "O ficheiro é demasiado grande (máx. 15 MB)."
+            is java.util.zip.ZipException ->
+                if (t.message.orEmpty().contains("encrypt", ignoreCase = true)) {
+                    "Este zip tem palavra-passe. Descompacta-o primeiro e importa os ficheiros um a um."
+                } else "O ficheiro .zip está danificado."
             is IllegalArgumentException -> t.message ?: "Ficheiro inválido."
             else -> "Não foi possível ler o recibo: ${t.message ?: t.javaClass.simpleName}"
         },

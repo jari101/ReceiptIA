@@ -22,7 +22,16 @@ class FileTypeAndOcrTest {
         assertEquals(ReceiptFileType.CSV, t("a;b;c\n1;2;3\n4;5;6"))
         assertEquals(ReceiptFileType.TEXTO, t("LEITE 0,89\nTOTAL 0,89"))
         assertEquals(ReceiptFileType.CSV, t("a,b", mime = "text/csv", name = "x.csv"))
-        assertEquals(null, FileTypeDetector.detect("application/zip", "x.zip", "PK..".toByteArray()))
+    }
+
+    @Test
+    fun `deteta zips mas nao os documentos do Office (que tambem sao zips por dentro)`() {
+        val zip = zipOf("a.txt" to "LEITE 0,89".toByteArray())
+        assertEquals(ReceiptFileType.ZIP, FileTypeDetector.detect("application/octet-stream", "recibos.bin", zip))
+        assertEquals(ReceiptFileType.ZIP, FileTypeDetector.detect(null, null, zipOf()))
+        assertEquals(ReceiptFileType.ZIP, FileTypeDetector.detect("application/x-zip-compressed", "x.zip", "??".toByteArray()))
+        assertEquals(null, FileTypeDetector.detect(null, "notas.docx", zip))
+        assertEquals(null, FileTypeDetector.detect(null, "contas.XLSX", zip))
     }
 
     @Test
