@@ -46,6 +46,16 @@ Com essas compras, a app mostra estatísticas, avisa quando a comida está a est
   - **filtros de dieta**: diabéticos, ginásio, sem glúten, sem lactose e vegetariano;
   - **Nova receita**: o botão para inserir receitas com ingredientes e passos.
 
+## Instalar no telemóvel
+
+1. No telemóvel Android (8 ou mais recente), abre a página **[Releases](https://github.com/jari101/ReceiptIA/releases)** e descarrega o ficheiro `ReceiptAI-v….apk`.
+2. Abre o ficheiro e, se o Android pedir, autoriza o browser a **"Instalar apps desconhecidas"**.
+3. Toca em **Instalar** e depois em **Abrir**.
+
+As versões 0.x são de teste e estão assinadas com uma chave de teste, por isso o Play Protect pode mostrar um aviso.
+
+**Publicar uma versão nova:** cria uma tag `vX.Y.Z` (por exemplo `git tag v0.1.1 && git push origin v0.1.1`) ou, no separador **Actions → Release → Run workflow**, escreve a versão. O GitHub Actions corre os testes, compila o APK e publica o release sozinho (ficheiro [`.github/workflows/release.yml`](.github/workflows/release.yml)).
+
 ## Como experimentar
 
 1. Instala o Android Studio (versão recente).
