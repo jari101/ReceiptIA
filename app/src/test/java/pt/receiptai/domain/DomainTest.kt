@@ -63,6 +63,11 @@ class DomainTest {
         assertEquals(LocalDate.of(2026, 11, 16), week.from)
         assertEquals(1500L, week.totalCents)
         assertEquals(listOf(1L, 2L), week.points.map { it.id })
+        assertEquals(7, week.buckets.size)
+        assertEquals("Seg", week.buckets.first().label)
+        assertEquals("Sáb", week.buckets[5].label)
+        assertEquals(1000L, week.buckets[0].cents) // segunda
+        assertEquals(500L, week.buckets[3].cents) // quinta
 
         val month = StatsCalculator.summarize(StatsPeriod.MES, today, receipts, emptyList())
         assertEquals(3500L, month.totalCents)
@@ -70,10 +75,19 @@ class DomainTest {
         assertEquals(17, month.changePercent)
         // Um ponto por recibo, do mais antigo para o mais recente.
         assertEquals(listOf(3L, 1L, 2L), month.points.map { it.id })
+        assertEquals(5, month.buckets.size) // 1–7, 8–14, 15–21, 22–28, 29–30
+        assertEquals("15–21", month.buckets[2].label)
+        // Cada barra sabe que recibos tem (é o que o popup mostra).
+        assertEquals(listOf(1L, 2L), month.buckets[2].receipts.map { it.id })
+        assertEquals(LocalDate.of(2026, 11, 15), month.buckets[2].from)
+        assertEquals(LocalDate.of(2026, 11, 30), month.buckets[4].to)
 
         val year = StatsCalculator.summarize(StatsPeriod.ANO, today, receipts, emptyList())
         assertEquals(6500L, year.totalCents)
         assertEquals(4, year.points.size)
+        assertEquals(12, year.buckets.size)
+        assertEquals(listOf(3L, 1L, 2L), year.buckets[10].receipts.map { it.id }) // novembro
+        assertEquals(LocalDate.of(2026, 2, 28), year.buckets[1].to)
         // O ano ainda não acabou: compara com 1 jan – 19 nov de 2025 (a compra de dezembro não conta).
         assertEquals(0L, year.previousTotalCents)
         assertNull(year.changePercent)

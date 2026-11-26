@@ -27,6 +27,13 @@ object Dates {
     fun input(d: LocalDate): String = input.format(d)
     fun parseInput(text: String): LocalDate? = runCatching { LocalDate.parse(text.trim(), input) }.getOrNull()
 
+    /** Título do popup de uma barra: "Sáb, 14 nov" (semana) · "8–14 nov" (mês) · "Novembro 2026" (ano). */
+    fun bucketTitle(period: StatsPeriod, from: LocalDate, to: LocalDate): String = when (period) {
+        StatsPeriod.SEMANA -> dayMonth(from)
+        StatsPeriod.MES -> "${from.dayOfMonth}–${dayShort(to)}"
+        StatsPeriod.ANO -> monthYear(from)
+    }
+
     /** Título do período nas estatísticas: "17 – 23 nov 2026", "Novembro 2026", "2026". */
     fun periodLabel(period: StatsPeriod, from: LocalDate, to: LocalDate): String = when (period) {
         StatsPeriod.SEMANA -> "${from.dayOfMonth} ${if (from.month != to.month) DateTimeFormatter.ofPattern("MMM", Money.PT).format(from).replace(".", "") + " " else ""}– ${full(to)}"

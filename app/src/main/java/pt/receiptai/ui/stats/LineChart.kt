@@ -2,31 +2,16 @@ package pt.receiptai.ui.stats
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Storefront
-import androidx.compose.material.icons.outlined.TouchApp
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
@@ -51,22 +35,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
 import pt.receiptai.R
 import pt.receiptai.domain.Money
 import pt.receiptai.domain.ReceiptSummary
@@ -75,8 +48,8 @@ import pt.receiptai.ui.components.Dates
 import pt.receiptai.ui.theme.EaseOutStrong
 import kotlin.math.roundToInt
 
-/** Altura da zona do gráfico (sem as datas por baixo). */
-private val ChartHeight = 160.dp
+/** Altura da zona do gráfico (sem as legendas por baixo). É igual nas barras e nas linhas. */
+internal val ChartHeight = 160.dp
 
 /** Espaço livre em cima, para o ponto mais alto não ficar cortado. */
 private val TopPadding = 12.dp
@@ -92,6 +65,7 @@ const val LineChartTag = "grafico_linha"
  *
  * - Cada ponto é UM recibo, por ordem de compra, com o mesmo espaço entre pontos
  *   (como nos gráficos da bolsa). A altura do ponto é o total desse recibo.
+ * - [curved] = false: segmentos retos. [curved] = true: curvas suaves entre os pontos.
  * - Arrastar o dedo (ou tocar) escolhe o ponto mais próximo e abre um popup por cima do
  *   gráfico com TODOS os recibos desse dia. Tocar num recibo do popup chama [onOpenReceipt].
  *
@@ -102,6 +76,7 @@ fun LineChart(
     points: List<ReceiptSummary>,
     onOpenReceipt: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    curved: Boolean = false,
     scrolling: Boolean = false,
 ) {
     // Índice do ponto escolhido (null = nenhum). Volta a null quando os pontos mudam (outro período).
@@ -189,7 +164,17 @@ fun LineChart(
                     if (points.size > 1) {
                         val path = Path().apply {
                             moveTo(xs[0], ys[0])
-                            for (i in 1 until xs.size) lineTo(xs[i], ys[i])
+                            for (i in 1 until xs.size) {
+                                if (curved) {
+                                    // Curva de Bézier: os 2 pontos de controlo ficam a meio caminho, à altura de
+                                    // cada ponta. A linha sai e chega na horizontal, por isso nunca passa acima
+                                    // do recibo mais caro nem abaixo do mais barato (não "inventa" gastos).
+                                    val midX = (xs[i - 1] + xs[i]) / 2f
+                                    cubicTo(midX, ys[i - 1], midX, ys[i], xs[i], ys[i])
+                                } else {
+                                    lineTo(xs[i], ys[i])
+                                }
+                            }
                         }
                         drawPath(path, lineColor, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                     }
@@ -221,39 +206,22 @@ fun LineChart(
 
             val sel = selected
             if (sel != null && sel in points.indices) {
-                val x = ChartGeometry.xOf(sel, widthPx, points.size, edge)
-                val gap = with(LocalDensity.current) { 8.dp.roundToPx() }
-                Popup(
-                    popupPositionProvider = AbovePoint(x.roundToInt(), gap),
-                    onDismissRequest = { selected = null },
-                    // Não "rouba" o teclado nem o botão voltar; tocar fora fecha o popup.
-                    properties = PopupProperties(focusable = false, dismissOnClickOutside = true),
-                ) {
-                    DayReceiptsPopup(
-                        receipts = StatsCalculator.sameDay(points, sel),
-                        highlightedId = points[sel].id,
-                        onOpen = { id ->
-                            selected = null
-                            onOpenReceipt(id)
-                        },
-                    )
-                }
+                val day = StatsCalculator.sameDay(points, sel)
+                ReceiptsPopup(
+                    anchorX = ChartGeometry.xOf(sel, widthPx, points.size, edge),
+                    title = Dates.dayMonth(points[sel].date),
+                    receipts = day,
+                    highlightedId = points[sel].id,
+                    onDismiss = { selected = null },
+                    onOpen = { id ->
+                        selected = null
+                        onOpenReceipt(id)
+                    },
+                )
             }
         }
 
         DateLabels(points)
-
-        if (points.isNotEmpty()) {
-            Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.TouchApp, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    stringResource(R.string.stats_chart_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
     }
 }
 
@@ -280,98 +248,26 @@ private fun DateLabels(points: List<ReceiptSummary>) {
     }
 }
 
-/**
- * O popup: a data e todos os recibos desse dia. Cada recibo é um botão que abre o recibo nos Registos.
- * Quando há vários recibos no dia, o que está debaixo do dedo fica com fundo verde-claro.
- */
-@Composable
-private fun DayReceiptsPopup(receipts: List<ReceiptSummary>, highlightedId: Long, onOpen: (Long) -> Unit) {
-    if (receipts.isEmpty()) return
-    Surface(
-        modifier = Modifier.widthIn(min = 220.dp, max = 300.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        shadowElevation = 8.dp,
-    ) {
-        Column(Modifier.padding(vertical = 8.dp)) {
-            val header = Dates.dayMonth(receipts.first().date) +
-                if (receipts.size > 1) " · " + pluralStringResource(R.plurals.receipts_on_day, receipts.size, receipts.size) else ""
-            Text(
-                header,
-                Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            receipts.forEach { r ->
-                PopupReceiptRow(r, highlighted = receipts.size > 1 && r.id == highlightedId, onClick = { onOpen(r.id) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun PopupReceiptRow(r: ReceiptSummary, highlighted: Boolean, onClick: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(if (highlighted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else Color.Transparent)
-            .clickable(onClickLabel = stringResource(R.string.stats_open_receipt), role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            Modifier.size(32.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Outlined.Storefront, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-        }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Text(r.store, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                pluralStringResource(R.plurals.products_count, r.itemCount, r.itemCount),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        Text(Money.format(r.totalCents), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-    }
-}
-
-/**
- * Diz ao popup ONDE aparecer: centrado no ponto escolhido e por cima do gráfico.
- * Se não couber (ex.: ponto muito à direita), encosta à margem do ecrã.
- */
-private data class AbovePoint(private val pointX: Int, private val gap: Int) : PopupPositionProvider {
-    override fun calculatePosition(
-        anchorBounds: IntRect,
-        windowSize: IntSize,
-        layoutDirection: LayoutDirection,
-        popupContentSize: IntSize,
-    ): IntOffset {
-        val maxX = (windowSize.width - popupContentSize.width - gap).coerceAtLeast(gap)
-        val x = (anchorBounds.left + pointX - popupContentSize.width / 2).coerceIn(gap, maxX)
-        val y = (anchorBounds.top - popupContentSize.height - gap).coerceAtLeast(gap)
-        return IntOffset(x, y)
-    }
-}
-
-/** As contas de posição do gráfico, separadas para se poderem testar sem ecrã. */
+/** As contas de posição dos gráficos, separadas para se poderem testar sem ecrã. */
 internal object ChartGeometry {
     /** Margem à esquerda e à direita, para as bolinhas das pontas não ficarem cortadas. */
     val EDGE = 8.dp
 
-    /** Posição horizontal (em píxeis) do ponto [index]. Um só ponto fica no meio. */
+    /** Linha: posição horizontal (em píxeis) do ponto [index]. Um só ponto fica no meio. */
     fun xOf(index: Int, width: Float, count: Int, edge: Float): Float =
         if (count <= 1) width / 2f else edge + index * (width - 2 * edge) / (count - 1)
 
-    /** O ponto mais perto da posição [x] do dedo. */
+    /** Linha: o ponto mais perto da posição [x] do dedo. */
     fun indexAt(x: Float, width: Float, count: Int, edge: Float): Int {
         if (count <= 1) return 0
         val step = (width - 2 * edge) / (count - 1)
         return ((x - edge) / step).roundToInt().coerceIn(0, count - 1)
     }
+
+    /** Barras: cada barra ocupa uma "fatia" igual da largura. Devolve a barra debaixo do dedo. */
+    fun barIndexAt(x: Float, width: Float, count: Int): Int =
+        if (count <= 0 || width <= 0f) 0 else (x / (width / count)).toInt().coerceIn(0, count - 1)
+
+    /** Barras: o centro (em píxeis) da barra [index]. */
+    fun barCenter(index: Int, width: Float, count: Int): Float = (index + 0.5f) * width / count
 }

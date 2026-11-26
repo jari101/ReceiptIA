@@ -10,12 +10,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pt.receiptai.AppContainer
+import pt.receiptai.domain.ChartStyle
 import pt.receiptai.domain.PeriodSummary
 import pt.receiptai.domain.StatsCalculator
 import pt.receiptai.domain.StatsPeriod
 
 data class StatsUiState(
     val period: StatsPeriod = StatsPeriod.MES,
+    val chartStyle: ChartStyle = ChartStyle.BARRAS,
     val summary: PeriodSummary? = null,
     val canGoForward: Boolean = false,
 )
@@ -26,17 +28,22 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
 
     val state: StateFlow<StatsUiState> = combine(
         container.settings.statsPeriod,
+        container.settings.chartStyle,
         anchor,
         container.receipts.receiptSummaries,
         container.receipts.purchaseLines,
-    ) { period, day, receipts, lines ->
+    ) { period, style, day, receipts, lines ->
         val summary = StatsCalculator.summarize(period, day, receipts, lines, container.today())
-        StatsUiState(period, summary, canGoForward = summary.to < container.today())
+        StatsUiState(period, style, summary, canGoForward = summary.to < container.today())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatsUiState())
 
     fun setPeriod(period: StatsPeriod) {
         anchor.value = container.today()
         viewModelScope.launch { container.settings.setStatsPeriod(period) }
+    }
+
+    fun setChartStyle(style: ChartStyle) {
+        viewModelScope.launch { container.settings.setChartStyle(style) }
     }
 
     fun previous() = anchor.update { StatsCalculator.shift(state.value.period, it, -1) }

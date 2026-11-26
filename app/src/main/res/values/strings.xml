@@ -85,6 +85,11 @@
     <string name="stats_chart_hint">Arrasta o dedo no gráfico para ver cada recibo</string>
     <string name="stats_chart_description">Gráfico de linha com uma compra por ponto: %1$s</string>
     <string name="stats_open_receipt">Abrir recibo</string>
+    <string name="stats_chart_style_current">Linha atual: %1$s</string>
+    <string name="stats_chart_style_change">Mudar o tipo de gráfico</string>
+    <string name="chart_style_bars">Barras</string>
+    <string name="chart_style_straight">Reta</string>
+    <string name="chart_style_curved">Curva</string>
 
     <!-- Registos -->
     <string name="records_title">Registos</string>

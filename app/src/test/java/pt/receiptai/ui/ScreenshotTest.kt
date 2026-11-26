@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -29,6 +30,7 @@ import pt.receiptai.data.db.ReceiptAiDatabase
 import pt.receiptai.data.repo.ReceiptRepository
 import pt.receiptai.data.repo.RecipeRepository
 import pt.receiptai.data.repo.ShoppingRepository
+import pt.receiptai.domain.ChartStyle
 import pt.receiptai.domain.StatsCalculator
 import pt.receiptai.domain.StatsPeriod
 import pt.receiptai.ui.home.HomeScreen
@@ -41,6 +43,8 @@ import pt.receiptai.ui.recipes.RecipesViewModel
 import pt.receiptai.ui.records.RecordsScreen
 import pt.receiptai.ui.records.RecordsUiState
 import pt.receiptai.ui.records.RecordsViewModel
+import pt.receiptai.ui.stats.BarChartTag
+import pt.receiptai.ui.stats.ChartStyleMenuTag
 import pt.receiptai.ui.stats.LineChartTag
 import pt.receiptai.ui.stats.StatsScreen
 import pt.receiptai.ui.stats.StatsUiState
@@ -93,9 +97,9 @@ class ScreenshotTest {
         )
     }
 
-    private fun statsState(period: StatsPeriod) = runBlocking {
+    private fun statsState(period: StatsPeriod, style: ChartStyle = ChartStyle.BARRAS) = runBlocking {
         val repo = ReceiptRepository(db) { today }
-        StatsUiState(period, StatsCalculator.summarize(period, today, repo.receiptSummaries.first(), repo.purchaseLines.first()), canGoForward = false)
+        StatsUiState(period, style, StatsCalculator.summarize(period, today, repo.receiptSummaries.first(), repo.purchaseLines.first()), canGoForward = false)
     }
 
     private fun recordsState(): RecordsUiState = runBlocking {
@@ -122,21 +126,36 @@ class ScreenshotTest {
     @Test fun inicioEscuro() = shot("1_inicio_escuro", dark = true) { HomeScreen(homeState(), {}, {}, {}, {}, {}) }
     @Test fun inicioVazio() = shot("1_inicio_vazio") { HomeScreen(HomeUiState(loading = false, isEmpty = true), {}, {}, {}, {}, {}) }
     @Test fun estatisticasMes() = shot("2_estatisticas_mes") { StatsScreen(statsState(StatsPeriod.MES), {}, {}, {}) }
-    @Test fun estatisticasAno() = shot("2_estatisticas_ano") { StatsScreen(statsState(StatsPeriod.ANO), {}, {}, {}) }
+    @Test fun estatisticasAno() = shot("2_estatisticas_ano") { StatsScreen(statsState(StatsPeriod.ANO, ChartStyle.RETA), {}, {}, {}) }
+    @Test fun estatisticasCurva() = shot("2_estatisticas_curva") { StatsScreen(statsState(StatsPeriod.MES, ChartStyle.CURVA), {}, {}, {}) }
     @Test fun estatisticasEscuro() = shot("2_estatisticas_escuro", dark = true) { StatsScreen(statsState(StatsPeriod.SEMANA), {}, {}, {}) }
 
-    /** O popup do gráfico abre numa janela própria, por isso a captura é do ecrã inteiro. */
+    /** O popup e o menu abrem numa janela própria, por isso a captura é do ecrã inteiro. */
     @OptIn(ExperimentalRoborazziApi::class)
-    @Test
-    fun estatisticasPopup() {
+    private fun screenShot(name: String, state: StatsUiState, action: () -> Unit) {
         compose.setContent {
             ReceiptAiTheme(darkTheme = true) {
-                Surface(color = MaterialTheme.colorScheme.background) { StatsScreen(statsState(StatsPeriod.MES), {}, {}, {}) }
+                Surface(color = MaterialTheme.colorScheme.background) { StatsScreen(state, {}, {}, {}) }
             }
         }
-        compose.onNodeWithTag(LineChartTag).performTouchInput { click(Offset(width * 0.62f, centerY)) }
+        action()
         compose.waitForIdle()
-        captureScreenRoboImage("../docs/screenshots/2_estatisticas_popup.png")
+        captureScreenRoboImage("../docs/screenshots/$name.png")
+    }
+
+    @Test
+    fun estatisticasPopup() = screenShot("2_estatisticas_popup", statsState(StatsPeriod.MES, ChartStyle.RETA)) {
+        compose.onNodeWithTag(LineChartTag).performTouchInput { click(Offset(width * 0.62f, centerY)) }
+    }
+
+    @Test
+    fun estatisticasPopupBarras() = screenShot("2_estatisticas_popup_barras", statsState(StatsPeriod.MES)) {
+        compose.onNodeWithTag(BarChartTag).performTouchInput { click(Offset(width * 0.5f, centerY)) }
+    }
+
+    @Test
+    fun estatisticasMenu() = screenShot("2_estatisticas_menu", statsState(StatsPeriod.MES, ChartStyle.RETA)) {
+        compose.onNodeWithTag(ChartStyleMenuTag).performClick()
     }
 
     @Test fun registos() = shot("3_registos") { RecordsScreen(recordsState(), {}, {}, {}) }

@@ -2,10 +2,14 @@ package pt.receiptai.domain
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
 
 /** Período escolhido na página de Estatísticas. */
 enum class StatsPeriod { SEMANA, MES, ANO }
+
+/** Tipo de gráfico escolhido no menu "Linha atual" (fica guardado no telemóvel). */
+enum class ChartStyle { BARRAS, RETA, CURVA }
 
 /** Uma compra simplificada (para cálculos que não precisam da base de dados). */
 data class PurchaseLine(
@@ -29,6 +33,14 @@ data class ReceiptSummary(
     val itemCount: Int,
 )
 
+/**
+ * Uma barra do gráfico de barras: os dias [from]..[to] e os recibos desses dias.
+ * Semana = 1 dia por barra; mês = blocos de 7 dias; ano = 1 mês por barra.
+ */
+data class Bucket(val label: String, val from: LocalDate, val to: LocalDate, val receipts: List<ReceiptSummary>) {
+    val cents: Long get() = receipts.sumOf { it.totalCents }
+}
+
 data class TopItem(val name: String, val timesBought: Int, val quantity: Double, val totalCents: Long)
 
 data class PeriodSummary(
@@ -39,6 +51,8 @@ data class PeriodSummary(
     val receiptCount: Int,
     /** Os pontos do gráfico de linha: um por recibo, do mais antigo para o mais recente. */
     val points: List<ReceiptSummary>,
+    /** As barras do gráfico de barras. */
+    val buckets: List<Bucket>,
     val topItems: List<TopItem>,
 ) {
     /** Variação em % face ao período anterior (null se não houver dados antes). */
@@ -80,6 +94,35 @@ object StatsCalculator {
         return points.filter { it.date == day }
     }
 
+    /** Barras do gráfico: semana = 7 dias; mês = blocos de 7 dias; ano = 12 meses. */
+    fun buckets(period: StatsPeriod, range: ClosedRange<LocalDate>, receipts: List<ReceiptSummary>): List<Bucket> {
+        val inRange = chartPoints(range, receipts)
+        fun bucket(label: String, from: LocalDate, to: LocalDate) =
+            Bucket(label, from, to, inRange.filter { it.date in from..to })
+        return when (period) {
+            StatsPeriod.SEMANA -> (0L..6L).map { i ->
+                val day = range.start.plusDays(i)
+                // "segunda" -> "Seg", "sábado" -> "Sáb" (cabe por baixo das barras)
+                bucket(day.dayOfWeek.getDisplayName(TextStyle.FULL, Money.PT).take(3).replaceFirstChar { it.uppercase() }, day, day)
+            }
+            StatsPeriod.MES -> {
+                val last = range.endInclusive.dayOfMonth
+                (1..last step 7).map { startDay ->
+                    val endDay = minOf(startDay + 6, last)
+                    bucket("$startDay–$endDay", range.start.withDayOfMonth(startDay), range.start.withDayOfMonth(endDay))
+                }
+            }
+            StatsPeriod.ANO -> (1..12).map { m ->
+                val first = range.start.withMonth(m).withDayOfMonth(1)
+                bucket(
+                    java.time.Month.of(m).getDisplayName(TextStyle.SHORT, Money.PT).trimEnd('.').replaceFirstChar { it.uppercase() },
+                    first,
+                    first.with(TemporalAdjusters.lastDayOfMonth()),
+                )
+            }
+        }
+    }
+
     /** Produtos comprados mais vezes (nº de compras diferentes onde aparecem). */
     fun topItems(lines: List<PurchaseLine>, limit: Int = 5): List<TopItem> =
         lines.groupBy { it.normalizedName.ifBlank { it.name.lowercase() } }
@@ -118,6 +161,7 @@ object StatsCalculator {
             previousTotalCents = receipts.filter { it.date in previous }.sumOf { it.totalCents },
             receiptCount = inCurrent.size,
             points = inCurrent,
+            buckets = buckets(period, current, receipts),
             topItems = topItems(lines.filter { it.date in current }),
         )
     }

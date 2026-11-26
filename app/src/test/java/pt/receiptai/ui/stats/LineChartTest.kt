@@ -15,6 +15,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import pt.receiptai.domain.Bucket
+import pt.receiptai.domain.ChartStyle
 import pt.receiptai.domain.ReceiptSummary
 import pt.receiptai.ui.theme.ReceiptAiTheme
 import java.time.LocalDate
@@ -62,6 +64,53 @@ class LineChartTest {
     }
 
     @Test
+    fun `linha curva tambem mostra o popup`() {
+        compose.setContent { ReceiptAiTheme { LineChart(points, onOpenReceipt = {}, curved = true) } }
+        compose.onNodeWithTag(LineChartTag).performTouchInput { click(Offset(5f, centerY)) }
+        compose.onNodeWithText("Continente").assertIsDisplayed()
+    }
+
+    @Test
+    fun `tocar numa barra mostra os recibos dessa barra`() {
+        val buckets = listOf(
+            Bucket("1–7", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 7), points.take(1)),
+            Bucket("8–14", LocalDate.of(2026, 11, 8), LocalDate.of(2026, 11, 14), emptyList()),
+            Bucket("15–21", LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 21), points.drop(1)),
+        )
+        var opened: Long? = null
+        compose.setContent {
+            ReceiptAiTheme { BarChart(buckets, popupTitle = { "Barra ${it.label}" }, onOpenReceipt = { opened = it }) }
+        }
+        // 3.ª barra (15–21): tem 3 recibos.
+        compose.onNodeWithTag(BarChartTag).performTouchInput { click(Offset(width * 0.85f, centerY)) }
+        compose.onNodeWithText("Barra 15–21 · 3 recibos").assertIsDisplayed()
+        compose.onNodeWithText("Lidl").performClick()
+        assertEquals(4L, opened)
+    }
+
+    @Test
+    fun `barra sem compras nao abre popup`() {
+        val buckets = listOf(
+            Bucket("Seg", LocalDate.of(2026, 11, 16), LocalDate.of(2026, 11, 16), emptyList()),
+            Bucket("Ter", LocalDate.of(2026, 11, 17), LocalDate.of(2026, 11, 17), points.take(1)),
+        )
+        compose.setContent { ReceiptAiTheme { BarChart(buckets, popupTitle = { it.label }, onOpenReceipt = {}) } }
+        compose.onNodeWithTag(BarChartTag).performTouchInput { click(Offset(width * 0.25f, centerY)) }
+        compose.onNodeWithText("Continente").assertDoesNotExist()
+    }
+
+    @Test
+    fun `menu mostra o tipo atual e muda para curva`() {
+        var chosen: ChartStyle? = null
+        compose.setContent { ReceiptAiTheme { ChartStyleMenu(ChartStyle.RETA, onStyle = { chosen = it }) } }
+        compose.onNodeWithText("Linha atual: Reta").assertIsDisplayed()
+        compose.onNodeWithTag(ChartStyleMenuTag).performClick()
+        compose.onNodeWithText("Barras").assertIsDisplayed()
+        compose.onNodeWithText("Curva").performClick()
+        assertEquals(ChartStyle.CURVA, chosen)
+    }
+
+    @Test
     fun `contas de posicao dos pontos`() {
         // 5 pontos numa largura de 416 px com 8 px de margem: um ponto a cada 100 px.
         assertEquals(8f, ChartGeometry.xOf(0, 416f, 5, 8f))
@@ -76,5 +125,11 @@ class LineChartTest {
         assertEquals(2, ChartGeometry.indexAt(170f, 416f, 5, 8f))
         assertEquals(4, ChartGeometry.indexAt(999f, 416f, 5, 8f))
         assertEquals(0, ChartGeometry.indexAt(300f, 416f, 1, 8f))
+
+        // Barras: 4 barras em 400 px = uma "fatia" de 100 px por barra.
+        assertEquals(0, ChartGeometry.barIndexAt(99f, 400f, 4))
+        assertEquals(1, ChartGeometry.barIndexAt(100f, 400f, 4))
+        assertEquals(3, ChartGeometry.barIndexAt(999f, 400f, 4))
+        assertEquals(150f, ChartGeometry.barCenter(1, 400f, 4))
     }
 }
