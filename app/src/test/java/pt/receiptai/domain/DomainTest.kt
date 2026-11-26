@@ -46,30 +46,34 @@ class DomainTest {
     private fun line(id: Long, date: LocalDate, name: String, cents: Long) =
         PurchaseLine(id, date, name, Normalizer.normalize(name), 1.0, cents)
 
+    private fun receipt(id: Long, date: LocalDate, cents: Long, store: String = "Loja") =
+        ReceiptSummary(id, date, store, cents, itemCount = 1)
+
     @Test
     fun `estatisticas por semana mes e ano`() {
         val today = LocalDate.of(2026, 11, 19) // quinta-feira
         val receipts = listOf(
-            LocalDate.of(2026, 11, 16) to 1000L, // segunda desta semana
-            LocalDate.of(2026, 11, 19) to 500L,
-            LocalDate.of(2026, 11, 2) to 2000L,
-            LocalDate.of(2026, 10, 10) to 3000L,
-            LocalDate.of(2025, 12, 1) to 9999L,
+            receipt(1, LocalDate.of(2026, 11, 16), 1000L), // segunda desta semana
+            receipt(2, LocalDate.of(2026, 11, 19), 500L),
+            receipt(3, LocalDate.of(2026, 11, 2), 2000L),
+            receipt(4, LocalDate.of(2026, 10, 10), 3000L),
+            receipt(5, LocalDate.of(2025, 12, 1), 9999L),
         )
         val week = StatsCalculator.summarize(StatsPeriod.SEMANA, today, receipts, emptyList())
         assertEquals(LocalDate.of(2026, 11, 16), week.from)
         assertEquals(1500L, week.totalCents)
-        assertEquals(7, week.buckets.size)
+        assertEquals(listOf(1L, 2L), week.points.map { it.id })
 
         val month = StatsCalculator.summarize(StatsPeriod.MES, today, receipts, emptyList())
         assertEquals(3500L, month.totalCents)
         assertEquals(3000L, month.previousTotalCents)
         assertEquals(17, month.changePercent)
-        assertEquals(5, month.buckets.size) // 1–7, 8–14, 15–21, 22–28, 29–30
+        // Um ponto por recibo, do mais antigo para o mais recente.
+        assertEquals(listOf(3L, 1L, 2L), month.points.map { it.id })
 
         val year = StatsCalculator.summarize(StatsPeriod.ANO, today, receipts, emptyList())
         assertEquals(6500L, year.totalCents)
-        assertEquals(12, year.buckets.size)
+        assertEquals(4, year.points.size)
         // O ano ainda não acabou: compara com 1 jan – 19 nov de 2025 (a compra de dezembro não conta).
         assertEquals(0L, year.previousTotalCents)
         assertNull(year.changePercent)
@@ -77,8 +81,28 @@ class DomainTest {
         // Um ano que já acabou compara com o ano anterior inteiro.
         val lastYear = StatsCalculator.summarize(StatsPeriod.ANO, LocalDate.of(2025, 6, 1), receipts, emptyList(), today)
         assertEquals(9999L, lastYear.totalCents)
-        assertEquals("Seg", week.buckets.first().label)
-        assertEquals("Sáb", week.buckets[5].label)
+    }
+
+    @Test
+    fun `pontos do grafico do mesmo dia ficam lado a lado e o popup mostra-os todos`() {
+        val nov18 = LocalDate.of(2026, 11, 18)
+        val receipts = listOf(
+            receipt(7, nov18, 1442, "Mercado do bairro"),
+            receipt(2, LocalDate.of(2026, 11, 3), 890),
+            receipt(5, nov18, 810, "Pingo Doce"),
+            receipt(9, LocalDate.of(2026, 11, 21), 300),
+            receipt(1, LocalDate.of(2026, 10, 31), 999), // outro mês: fica de fora
+        )
+        val range = StatsCalculator.range(StatsPeriod.MES, nov18)
+        val points = StatsCalculator.chartPoints(range, receipts)
+        // Por data e, no mesmo dia, pelo id (o recibo guardado primeiro vem primeiro).
+        assertEquals(listOf(2L, 5L, 7L, 9L), points.map { it.id })
+
+        // Tocar no 2.º ou no 3.º ponto mostra os DOIS recibos de 18 nov.
+        assertEquals(listOf(5L, 7L), StatsCalculator.sameDay(points, 1).map { it.id })
+        assertEquals(listOf(5L, 7L), StatsCalculator.sameDay(points, 2).map { it.id })
+        assertEquals(listOf(9L), StatsCalculator.sameDay(points, 3).map { it.id })
+        assertEquals(emptyList<ReceiptSummary>(), StatsCalculator.sameDay(points, 99))
     }
 
     @Test

@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -55,17 +55,30 @@ import pt.receiptai.ui.components.appViewModel
 import pt.receiptai.ui.components.label
 import pt.receiptai.ui.theme.LocalStatusColors
 
+/** @param onOpenReceipt chamado quando se toca num recibo do popup do gráfico. */
 @Composable
-fun StatsRoute() {
+fun StatsRoute(onOpenReceipt: (Long) -> Unit) {
     val vm = appViewModel { StatsViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
-    StatsScreen(state, vm::setPeriod, vm::previous, vm::next)
+    StatsScreen(state, vm::setPeriod, vm::previous, vm::next, onOpenReceipt)
 }
 
 @Composable
-fun StatsScreen(state: StatsUiState, onPeriod: (StatsPeriod) -> Unit, onPrevious: () -> Unit, onNext: () -> Unit) {
+fun StatsScreen(
+    state: StatsUiState,
+    onPeriod: (StatsPeriod) -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onOpenReceipt: (Long) -> Unit = {},
+) {
     val summary = state.summary
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    val listState = rememberLazyListState()
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        state = listState,
+        contentPadding = ScreenPadding,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
         item { ScreenTitle(stringResource(R.string.stats_title), stringResource(R.string.stats_subtitle)) }
 
         item {
@@ -122,7 +135,7 @@ fun StatsScreen(state: StatsUiState, onPeriod: (StatsPeriod) -> Unit, onPrevious
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(16.dp))
-                BarChart(summary.buckets)
+                LineChart(summary.points, onOpenReceipt, scrolling = listState.isScrollInProgress)
             }
         }
 

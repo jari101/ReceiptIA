@@ -9,7 +9,13 @@ import androidx.compose.ui.test.onRoot
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTouchInput
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -35,6 +41,7 @@ import pt.receiptai.ui.recipes.RecipesViewModel
 import pt.receiptai.ui.records.RecordsScreen
 import pt.receiptai.ui.records.RecordsUiState
 import pt.receiptai.ui.records.RecordsViewModel
+import pt.receiptai.ui.stats.LineChartTag
 import pt.receiptai.ui.stats.StatsScreen
 import pt.receiptai.ui.stats.StatsUiState
 import pt.receiptai.ui.theme.ReceiptAiTheme
@@ -88,7 +95,7 @@ class ScreenshotTest {
 
     private fun statsState(period: StatsPeriod) = runBlocking {
         val repo = ReceiptRepository(db) { today }
-        StatsUiState(period, StatsCalculator.summarize(period, today, repo.receiptTotals.first(), repo.purchaseLines.first()), canGoForward = false)
+        StatsUiState(period, StatsCalculator.summarize(period, today, repo.receiptSummaries.first(), repo.purchaseLines.first()), canGoForward = false)
     }
 
     private fun recordsState(): RecordsUiState = runBlocking {
@@ -117,6 +124,21 @@ class ScreenshotTest {
     @Test fun estatisticasMes() = shot("2_estatisticas_mes") { StatsScreen(statsState(StatsPeriod.MES), {}, {}, {}) }
     @Test fun estatisticasAno() = shot("2_estatisticas_ano") { StatsScreen(statsState(StatsPeriod.ANO), {}, {}, {}) }
     @Test fun estatisticasEscuro() = shot("2_estatisticas_escuro", dark = true) { StatsScreen(statsState(StatsPeriod.SEMANA), {}, {}, {}) }
+
+    /** O popup do gráfico abre numa janela própria, por isso a captura é do ecrã inteiro. */
+    @OptIn(ExperimentalRoborazziApi::class)
+    @Test
+    fun estatisticasPopup() {
+        compose.setContent {
+            ReceiptAiTheme(darkTheme = true) {
+                Surface(color = MaterialTheme.colorScheme.background) { StatsScreen(statsState(StatsPeriod.MES), {}, {}, {}) }
+            }
+        }
+        compose.onNodeWithTag(LineChartTag).performTouchInput { click(Offset(width * 0.62f, centerY)) }
+        compose.waitForIdle()
+        captureScreenRoboImage("../docs/screenshots/2_estatisticas_popup.png")
+    }
+
     @Test fun registos() = shot("3_registos") { RecordsScreen(recordsState(), {}, {}, {}) }
     @Test fun registosEscuro() = shot("3_registos_escuro", dark = true) { RecordsScreen(recordsState(), {}, {}, {}) }
     @Test fun receitas() = shot("4_receitas") { RecipesScreen(recipesState(cookMode = true), {}, {}, {}, {}, {}, {}, {}) }

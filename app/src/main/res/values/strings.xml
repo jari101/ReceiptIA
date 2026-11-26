@@ -82,6 +82,9 @@
     <string name="stats_quantity">qtd. %1$s</string>
     <string name="stats_empty_title">Sem compras neste período</string>
     <string name="stats_empty_message">Muda de período ou importa recibos.</string>
+    <string name="stats_chart_hint">Arrasta o dedo no gráfico para ver cada recibo</string>
+    <string name="stats_chart_description">Gráfico de linha com uma compra por ponto: %1$s</string>
+    <string name="stats_open_receipt">Abrir recibo</string>
 
     <!-- Registos -->
     <string name="records_title">Registos</string>
@@ -205,6 +208,11 @@
         <item quantity="one">Recibo guardado!</item>
         <item quantity="many">%d recibos guardados!</item>
         <item quantity="other">%d recibos guardados!</item>
+    </plurals>
+    <plurals name="receipts_on_day">
+        <item quantity="one">%d recibo</item>
+        <item quantity="many">%d recibos</item>
+        <item quantity="other">%d recibos</item>
     </plurals>
     <plurals name="times_bought">
         <item quantity="one">comprado %d vez</item>

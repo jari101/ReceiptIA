@@ -17,6 +17,7 @@ import pt.receiptai.domain.MealType
 import pt.receiptai.domain.Normalizer
 import pt.receiptai.domain.PurchaseLine
 import pt.receiptai.domain.ReceiptSource
+import pt.receiptai.domain.ReceiptSummary
 import pt.receiptai.domain.RecipeInfo
 import pt.receiptai.domain.ShelfLife
 import pt.receiptai.parser.ParsedReceipt
@@ -34,6 +35,9 @@ class ReceiptRepository(private val db: ReceiptAiDatabase, private val today: ()
     val count = dao.observeCount()
     val receiptTotals: Flow<List<Pair<LocalDate, Long>>> =
         dao.observeReceipts().map { list -> list.map { it.purchasedOn to it.totalCents } }
+    val receiptSummaries: Flow<List<ReceiptSummary>> = dao.observeReceiptSummaries().map { rows ->
+        rows.map { ReceiptSummary(it.id, it.purchasedOn, it.storeName, it.totalCents, it.itemCount) }
+    }
     val purchaseLines: Flow<List<PurchaseLine>> = dao.observePurchaseRows().map { rows ->
         rows.map { PurchaseLine(it.receiptId, it.purchasedOn, it.name, it.normalizedName, it.quantity, it.totalCents) }
     }

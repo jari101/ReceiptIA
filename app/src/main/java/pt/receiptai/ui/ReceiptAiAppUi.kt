@@ -114,6 +114,8 @@ fun ReceiptAiAppUi(shared: SharedContent?, onSharedConsumed: () -> Unit) {
     var showSheet by rememberSaveable { mutableStateOf(false) }
     var showLinkDialog by rememberSaveable { mutableStateOf(false) }
     var pantryTab by rememberSaveable { mutableStateOf(0) }
+    // Recibo a abrir nos Registos (tocado no popup do gráfico das Estatísticas).
+    var focusReceipt by rememberSaveable { mutableStateOf<Long?>(null) }
 
     // ---------- Escolher ficheiro (PDF, imagem, CSV, JSON, XML, TXT, HTML) ----------
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -218,8 +220,12 @@ fun ReceiptAiAppUi(shared: SharedContent?, onSharedConsumed: () -> Unit) {
                         onOpenStats = { nav.navigateTab(Tab.ESTATISTICAS) },
                     )
                 }
-                composable(Tab.ESTATISTICAS.route) { StatsRoute() }
-                composable(Tab.REGISTOS.route) { RecordsRoute() }
+                composable(Tab.ESTATISTICAS.route) {
+                    StatsRoute(onOpenReceipt = { id -> focusReceipt = id; nav.navigateTab(Tab.REGISTOS) })
+                }
+                composable(Tab.REGISTOS.route) {
+                    RecordsRoute(focusReceiptId = focusReceipt, onFocusHandled = { focusReceipt = null })
+                }
                 composable(Tab.RECEITAS.route) { RecipesRoute(onNewRecipe = { nav.navigate("receita/nova") }) }
                 composable(Tab.DESPENSA.route) { PantryRoute(initialTab = pantryTab) }
                 composable("receita/nova") { NewRecipeScreen(onClose = { nav.popBackStack() }) }

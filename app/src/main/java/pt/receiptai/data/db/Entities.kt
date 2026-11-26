@@ -55,6 +55,15 @@ data class PurchaseRow(
     val totalCents: Long,
 )
 
+/** Um recibo com o nº de produtos (usado no gráfico das estatísticas). */
+data class ReceiptSummaryRow(
+    val id: Long,
+    val storeName: String,
+    val purchasedOn: LocalDate,
+    val totalCents: Long,
+    val itemCount: Int,
+)
+
 /** Um ingrediente/produto que está em casa, com a data de validade. */
 @Entity(tableName = "pantry_items", indices = [Index("expiresOn")])
 data class PantryItemEntity(

@@ -16,10 +16,13 @@ object Dates {
     private val full = DateTimeFormatter.ofPattern("d MMM yyyy", Money.PT)
     private val dayMonth = DateTimeFormatter.ofPattern("EEE, d MMM", Money.PT)
     private val monthYear = DateTimeFormatter.ofPattern("MMMM yyyy", Money.PT)
+    private val dayShort = DateTimeFormatter.ofPattern("d MMM", Money.PT)
     private val input = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
     fun full(d: LocalDate): String = full.format(d).replace(".", "")
     fun dayMonth(d: LocalDate): String = dayMonth.format(d).replace(".", "").replaceFirstChar { it.uppercase() }
+    /** "18 nov" (por baixo do gráfico). */
+    fun dayShort(d: LocalDate): String = dayShort.format(d).replace(".", "")
     fun monthYear(d: LocalDate): String = monthYear.format(d).replaceFirstChar { it.uppercase() }
     fun input(d: LocalDate): String = input.format(d)
     fun parseInput(text: String): LocalDate? = runCatching { LocalDate.parse(text.trim(), input) }.getOrNull()

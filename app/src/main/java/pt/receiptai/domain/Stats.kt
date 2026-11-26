@@ -2,7 +2,6 @@ package pt.receiptai.domain
 
 import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
 
 /** Período escolhido na página de Estatísticas. */
@@ -18,7 +17,17 @@ data class PurchaseLine(
     val totalCents: Long,
 )
 
-data class Bucket(val label: String, val cents: Long)
+/**
+ * Um recibo resumido: tudo o que o gráfico precisa para desenhar um ponto
+ * e para mostrar o popup (loja, data, total e nº de produtos).
+ */
+data class ReceiptSummary(
+    val id: Long,
+    val date: LocalDate,
+    val store: String,
+    val totalCents: Long,
+    val itemCount: Int,
+)
 
 data class TopItem(val name: String, val timesBought: Int, val quantity: Double, val totalCents: Long)
 
@@ -28,7 +37,8 @@ data class PeriodSummary(
     val totalCents: Long,
     val previousTotalCents: Long,
     val receiptCount: Int,
-    val buckets: List<Bucket>,
+    /** Os pontos do gráfico de linha: um por recibo, do mais antigo para o mais recente. */
+    val points: List<ReceiptSummary>,
     val topItems: List<TopItem>,
 ) {
     /** Variação em % face ao período anterior (null se não houver dados antes). */
@@ -57,29 +67,17 @@ object StatsCalculator {
         StatsPeriod.ANO -> anchor.plusYears(delta)
     }
 
-    /** Barras do gráfico: semana = 7 dias; mês = blocos de 7 dias; ano = 12 meses. */
-    fun buckets(period: StatsPeriod, range: ClosedRange<LocalDate>, receipts: List<Pair<LocalDate, Long>>): List<Bucket> {
-        val inRange = receipts.filter { it.first in range }
-        return when (period) {
-            StatsPeriod.SEMANA -> (0L..6L).map { i ->
-                val day = range.start.plusDays(i)
-                // "segunda" -> "Seg", "sábado" -> "Sáb" (cabe por baixo das barras)
-                Bucket(day.dayOfWeek.getDisplayName(TextStyle.FULL, Money.PT).take(3).replaceFirstChar { it.uppercase() },
-                    inRange.filter { it.first == day }.sumOf { it.second })
-            }
-            StatsPeriod.MES -> {
-                val last = range.endInclusive.dayOfMonth
-                (1..last step 7).map { startDay ->
-                    val endDay = minOf(startDay + 6, last)
-                    Bucket("$startDay–$endDay", inRange.filter { it.first.dayOfMonth in startDay..endDay }.sumOf { it.second })
-                }
-            }
-            StatsPeriod.ANO -> (1..12).map { m ->
-                val month = java.time.Month.of(m)
-                Bucket(month.getDisplayName(TextStyle.SHORT, Money.PT).trimEnd('.').replaceFirstChar { it.uppercase() },
-                    inRange.filter { it.first.monthValue == m }.sumOf { it.second })
-            }
-        }
+    /**
+     * Pontos do gráfico: um por recibo dentro do período, por ordem de compra.
+     * Recibos do mesmo dia ficam lado a lado (o mais antigo, com id menor, primeiro).
+     */
+    fun chartPoints(range: ClosedRange<LocalDate>, receipts: List<ReceiptSummary>): List<ReceiptSummary> =
+        receipts.filter { it.date in range }.sortedWith(compareBy<ReceiptSummary> { it.date }.thenBy { it.id })
+
+    /** Todos os recibos com a MESMA data do ponto escolhido (é o que o popup mostra). */
+    fun sameDay(points: List<ReceiptSummary>, index: Int): List<ReceiptSummary> {
+        val day = points.getOrNull(index)?.date ?: return emptyList()
+        return points.filter { it.date == day }
     }
 
     /** Produtos comprados mais vezes (nº de compras diferentes onde aparecem). */
@@ -100,7 +98,7 @@ object StatsCalculator {
     fun summarize(
         period: StatsPeriod,
         anchor: LocalDate,
-        receipts: List<Pair<LocalDate, Long>>,
+        receipts: List<ReceiptSummary>,
         lines: List<PurchaseLine>,
         today: LocalDate = anchor,
     ): PeriodSummary {
@@ -112,14 +110,14 @@ object StatsCalculator {
             val elapsed = java.time.temporal.ChronoUnit.DAYS.between(current.start, today)
             fullPrevious.start..minOf(fullPrevious.endInclusive, fullPrevious.start.plusDays(elapsed))
         } else fullPrevious
-        val inCurrent = receipts.filter { it.first in current }
+        val inCurrent = chartPoints(current, receipts)
         return PeriodSummary(
             from = current.start,
             to = current.endInclusive,
-            totalCents = inCurrent.sumOf { it.second },
-            previousTotalCents = receipts.filter { it.first in previous }.sumOf { it.second },
+            totalCents = inCurrent.sumOf { it.totalCents },
+            previousTotalCents = receipts.filter { it.date in previous }.sumOf { it.totalCents },
             receiptCount = inCurrent.size,
-            buckets = buckets(period, current, receipts),
+            points = inCurrent,
             topItems = topItems(lines.filter { it.date in current }),
         )
     }
