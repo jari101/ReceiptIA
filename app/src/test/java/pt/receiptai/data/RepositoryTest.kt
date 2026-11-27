@@ -93,5 +93,12 @@ class RepositoryTest {
         shopping.toggle(shopping.items.first().first { it.name == "Leite" })
         shopping.clearChecked()
         assertEquals(listOf("Pão"), shopping.items.first().map { it.name })
+
+        // "Anular": o id devolvido pelo add serve para tirar logo o produto da lista.
+        val id = shopping.add("Bananas")!!
+        assertEquals(listOf("Bananas", "Pão"), shopping.items.first().map { it.name })
+        shopping.deleteById(id)
+        assertEquals(listOf("Pão"), shopping.items.first().map { it.name })
+        assertEquals(null, shopping.add("   "))
     }
 }

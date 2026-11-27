@@ -66,7 +66,7 @@ class ScreenshotTest {
     private lateinit var db: ReceiptAiDatabase
 
     @Before
-    fun setUp() = runBlocking {
+    fun setUp(): Unit = runBlocking {
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), ReceiptAiDatabase::class.java)
             .allowMainThreadQueries().build()
         ReceiptRepository(db) { today }.loadDemoData()
@@ -93,6 +93,7 @@ class ScreenshotTest {
             dao.observeReceipts().first().map { it.purchasedOn to it.totalCents },
             dao.observeLatest().first(),
             db.pantryDao().observeActive().first(),
+            db.shoppingDao().observeAll().first(),
             today,
         )
     }
@@ -123,7 +124,11 @@ class ScreenshotTest {
     }
 
     @Test fun inicio() = shot("1_inicio") { HomeScreen(homeState(), {}, {}, {}, {}, {}) }
-    @Test fun inicioEscuro() = shot("1_inicio_escuro", dark = true) { HomeScreen(homeState(), {}, {}, {}, {}, {}) }
+    /** No tema escuro, o 1.º alerta já está na lista de compras (mostra o ✓ em vez do 🛒). */
+    @Test fun inicioEscuro() = shot("1_inicio_escuro", dark = true) {
+        val state = homeState()
+        HomeScreen(state.copy(alerts = state.alerts.mapIndexed { i, a -> a.copy(onList = i == 0) }), {}, {}, {}, {}, {})
+    }
     @Test fun inicioVazio() = shot("1_inicio_vazio") { HomeScreen(HomeUiState(loading = false, isEmpty = true), {}, {}, {}, {}, {}) }
     @Test fun estatisticasMes() = shot("2_estatisticas_mes") { StatsScreen(statsState(StatsPeriod.MES), {}, {}, {}) }
     @Test fun estatisticasAno() = shot("2_estatisticas_ano") { StatsScreen(statsState(StatsPeriod.ANO, ChartStyle.RETA), {}, {}, {}) }

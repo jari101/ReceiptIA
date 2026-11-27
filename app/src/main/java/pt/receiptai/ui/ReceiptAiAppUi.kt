@@ -218,6 +218,7 @@ fun ReceiptAiAppUi(shared: SharedContent?, onSharedConsumed: () -> Unit) {
                         onOpenRecords = { nav.navigateTab(Tab.REGISTOS) },
                         onOpenPantry = { pantryTab = 0; nav.navigateTab(Tab.DESPENSA) },
                         onOpenStats = { nav.navigateTab(Tab.ESTATISTICAS) },
+                        snackbar = snackbar,
                     )
                 }
                 composable(Tab.ESTATISTICAS.route) {

@@ -165,13 +165,15 @@ class ShoppingRepository(private val db: ReceiptAiDatabase) {
     private val dao = db.shoppingDao()
     val items = dao.observeAll()
 
-    suspend fun add(name: String, isAuto: Boolean = false) {
-        if (name.isBlank()) return
-        dao.insert(ShoppingItemEntity(name = name.trim(), normalizedName = Normalizer.normalize(name), isAuto = isAuto))
+    /** Junta um produto à lista. Devolve o id novo (serve para o "Anular"), ou null se o nome estiver vazio. */
+    suspend fun add(name: String, isAuto: Boolean = false): Long? {
+        if (name.isBlank()) return null
+        return dao.insert(ShoppingItemEntity(name = name.trim(), normalizedName = Normalizer.normalize(name), isAuto = isAuto))
     }
     suspend fun addAll(names: List<String>, isAuto: Boolean) =
         dao.insertAll(names.filter { it.isNotBlank() }.map { ShoppingItemEntity(name = it.trim(), normalizedName = Normalizer.normalize(it), isAuto = isAuto) })
     suspend fun toggle(item: ShoppingItemEntity) = dao.update(item.copy(checked = !item.checked))
     suspend fun delete(item: ShoppingItemEntity) = dao.delete(item)
+    suspend fun deleteById(id: Long) = dao.deleteById(id)
     suspend fun clearChecked() = dao.deleteChecked()
 }

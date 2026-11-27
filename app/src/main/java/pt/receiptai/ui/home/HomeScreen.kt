@@ -1,5 +1,11 @@
 package pt.receiptai.ui.home
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +22,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.AddCircle
+import androidx.compose.material.icons.outlined.AddShoppingCart
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Storefront
@@ -24,12 +32,17 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -37,6 +50,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import pt.receiptai.R
 import pt.receiptai.domain.Money
 import pt.receiptai.ui.components.AppCard
@@ -46,12 +60,33 @@ import pt.receiptai.ui.components.ExpiryBadge
 import pt.receiptai.ui.components.ScreenPadding
 import pt.receiptai.ui.components.SectionTitle
 import pt.receiptai.ui.components.appViewModel
+import pt.receiptai.ui.theme.EaseOutStrong
 
+/** @param snackbar onde aparece a mensagem "… adicionado à lista de compras  ANULAR". */
 @Composable
-fun HomeRoute(onImport: () -> Unit, onOpenRecords: () -> Unit, onOpenPantry: () -> Unit, onOpenStats: () -> Unit) {
+fun HomeRoute(
+    onImport: () -> Unit,
+    onOpenRecords: () -> Unit,
+    onOpenPantry: () -> Unit,
+    onOpenStats: () -> Unit,
+    snackbar: SnackbarHostState,
+) {
     val vm = appViewModel { HomeViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
-    HomeScreen(state, onImport, vm::loadDemoData, onOpenRecords, onOpenPantry, onOpenStats)
+    val scope = rememberCoroutineScope()
+    val addedMessage = stringResource(R.string.home_added_to_list) // "%1$s adicionado à lista de compras"
+    val undo = stringResource(R.string.undo)
+    HomeScreen(
+        state, onImport, vm::loadDemoData, onOpenRecords, onOpenPantry, onOpenStats,
+        onAddToShopping = { alert ->
+            scope.launch {
+                val id = vm.addToShopping(alert) ?: return@launch
+                snackbar.currentSnackbarData?.dismiss() // uma mensagem de cada vez
+                val result = snackbar.showSnackbar(addedMessage.format(alert.name), actionLabel = undo, duration = SnackbarDuration.Short)
+                if (result == SnackbarResult.ActionPerformed) vm.removeFromShopping(id)
+            }
+        },
+    )
 }
 
 @Composable
@@ -62,6 +97,7 @@ fun HomeScreen(
     onOpenRecords: () -> Unit,
     onOpenPantry: () -> Unit,
     onOpenStats: () -> Unit,
+    onAddToShopping: (AlertItem) -> Unit = {},
 ) {
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -119,10 +155,11 @@ fun HomeScreen(
             item {
                 AppCard(onClick = onOpenPantry) {
                     state.alerts.forEachIndexed { i, alert ->
-                        if (i > 0) HorizontalDivider(Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                        if (i > 0) HorizontalDivider(Modifier.padding(vertical = 2.dp), color = MaterialTheme.colorScheme.outlineVariant)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(alert.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                             ExpiryBadge(alert.daysLeft)
+                            AddToListButton(alert, onAdd = { onAddToShopping(alert) })
                         }
                     }
                 }
@@ -150,6 +187,32 @@ fun HomeScreen(
                         Text(Money.format(last.totalCents), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Botão 🛒 de um alerta. Depois de tocar, troca para ✓ ("já está na lista") com um
+ * pequeno "pop" (cresce e aparece em 180 ms). Se carregares em "Anular", volta a ser 🛒.
+ */
+@Composable
+private fun AddToListButton(alert: AlertItem, onAdd: () -> Unit) {
+    AnimatedContent(
+        targetState = alert.onList,
+        transitionSpec = {
+            (fadeIn(tween(180)) + scaleIn(tween(180, easing = EaseOutStrong), initialScale = 0.6f)) togetherWith fadeOut(tween(90))
+        },
+        label = "carrinho",
+    ) { onList ->
+        if (onList) {
+            // Mesmo tamanho do botão (48 dp), para a linha não "saltar".
+            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.CheckCircle, stringResource(R.string.home_on_list, alert.name), tint = MaterialTheme.colorScheme.primary)
+            }
+        } else {
+            IconButton(onClick = onAdd) {
+                Icon(Icons.Outlined.AddShoppingCart, stringResource(R.string.home_add_to_list, alert.name), tint = MaterialTheme.colorScheme.primary)
             }
         }
     }
