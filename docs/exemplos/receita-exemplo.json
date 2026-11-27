@@ -1,0 +1,21 @@
+{
+  "formato": "receiptai-receita-v1",
+  "nome": "Bacalhau à Brás",
+  "refeicao": "jantar",
+  "minutos": 30,
+  "dietas": ["sem-gluten", "sem-lactose"],
+  "ingredientes": [
+    { "nome": "Bacalhau desfiado", "quantidade": "300 g" },
+    { "nome": "Batata palha", "quantidade": "200 g" },
+    { "nome": "Ovos", "quantidade": "5" },
+    { "nome": "Cebola", "quantidade": "2" },
+    { "nome": "Azeitonas", "quantidade": "q.b.", "opcional": true },
+    { "nome": "Salsa", "quantidade": "q.b.", "opcional": true }
+  ],
+  "passos": [
+    "Aloura a cebola às meias-luas em azeite.",
+    "Junta o bacalhau e deixa cozinhar 5 minutos.",
+    "Junta a batata palha e os ovos batidos e mexe até ficar cremoso.",
+    "Serve com azeitonas e salsa picada."
+  ]
+}

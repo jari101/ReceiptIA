@@ -21,6 +21,7 @@ import pt.receiptai.domain.ReceiptSummary
 import pt.receiptai.domain.RecipeInfo
 import pt.receiptai.domain.ShelfLife
 import pt.receiptai.parser.ParsedReceipt
+import pt.receiptai.parser.ParsedRecipe
 import java.time.LocalDate
 
 /**
@@ -152,8 +153,32 @@ class RecipeRepository(private val db: ReceiptAiDatabase) {
         ingredients.map { RecipeIngredientEntity(name = it.name.trim(), amount = it.amount.trim(), optional = it.optional) },
     )
 
+    /**
+     * Guarda receitas lidas de ficheiros (ex.: dentro de um .zip). Uma receita com o mesmo nome
+     * de outra que já existe é saltada, para importar o mesmo ficheiro 2 vezes não duplicar nada.
+     */
+    suspend fun addImported(recipes: List<ParsedRecipe>): RecipeImportCount = db.withTransaction {
+        val existing = dao.names().map(Normalizer::normalize).toMutableSet()
+        var added = 0
+        for (r in recipes) {
+            if (!existing.add(Normalizer.normalize(r.name))) continue
+            dao.insertWithIngredients(
+                RecipeEntity(
+                    name = r.name.trim(), mealType = r.mealType, minutes = r.minutes,
+                    steps = r.steps.joinToString("\n"), tags = r.tags, isCustom = true,
+                ),
+                r.ingredients.map { RecipeIngredientEntity(name = it.name.trim(), amount = it.amount.trim(), optional = it.optional) },
+            )
+            added++
+        }
+        RecipeImportCount(added = added, alreadyExisted = recipes.size - added)
+    }
+
     suspend fun delete(id: Long) = dao.delete(id)
 }
+
+/** Quantas receitas importadas entraram e quantas já existiam (e foram saltadas). */
+data class RecipeImportCount(val added: Int, val alreadyExisted: Int)
 
 fun RecipeWithIngredients.toInfo() = RecipeInfo(
     id = recipe.id,

@@ -21,4 +21,9 @@ data class ParsedItem(
 )
 
 /** Tipos de ficheiro que a app sabe ler. */
-enum class ReceiptFileType { PDF, IMAGEM, HTML, TEXTO, CSV, JSON, XML, ZIP }
+enum class ReceiptFileType {
+    PDF, IMAGEM, HTML, TEXTO, CSV, JSON, XML, ZIP,
+
+    /** Vários ficheiros escolhidos de uma vez (podem ser de tipos diferentes). */
+    VARIOS,
+}

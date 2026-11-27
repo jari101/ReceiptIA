@@ -45,6 +45,19 @@ class MainActivity : ComponentActivity() {
                 stream?.let { SharedContent.File(it) }
                     ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }?.let { SharedContent.Text(it) }
             }
+            // Vários ficheiros partilhados de uma vez.
+            Intent.ACTION_SEND_MULTIPLE -> {
+                val streams: List<Uri> = if (Build.VERSION.SDK_INT >= 33) {
+                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION") intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+                }.orEmpty()
+                when (streams.size) {
+                    0 -> null
+                    1 -> SharedContent.File(streams.single())
+                    else -> SharedContent.Files(streams)
+                }
+            }
             Intent.ACTION_VIEW -> intent.data?.let { SharedContent.File(it) }
             else -> null
         }

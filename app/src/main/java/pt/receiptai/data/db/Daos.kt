@@ -86,6 +86,9 @@ interface RecipeDao {
     @Query("SELECT COUNT(*) FROM recipes")
     suspend fun count(): Int
 
+    @Query("SELECT name FROM recipes")
+    suspend fun names(): List<String>
+
     @Insert suspend fun insertRecipe(recipe: RecipeEntity): Long
     @Insert suspend fun insertIngredients(items: List<RecipeIngredientEntity>)
 

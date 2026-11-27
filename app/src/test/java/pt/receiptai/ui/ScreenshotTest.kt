@@ -4,17 +4,17 @@ import android.app.Application
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.test.click
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTouchInput
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.captureScreenRoboImage
@@ -27,16 +27,26 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import pt.receiptai.AppContainer
 import pt.receiptai.data.db.ReceiptAiDatabase
 import pt.receiptai.data.repo.ReceiptRepository
+import pt.receiptai.data.repo.RecipeImportCount
 import pt.receiptai.data.repo.RecipeRepository
 import pt.receiptai.data.repo.ShoppingRepository
 import pt.receiptai.domain.ChartStyle
+import pt.receiptai.domain.ReceiptSource
 import pt.receiptai.domain.StatsCalculator
 import pt.receiptai.domain.StatsPeriod
+import pt.receiptai.importer.ImportSummary
+import pt.receiptai.parser.ReceiptFileType
 import pt.receiptai.ui.home.HomeScreen
 import pt.receiptai.ui.home.HomeUiState
 import pt.receiptai.ui.home.HomeViewModel
+import pt.receiptai.ui.importreview.DraftItem
+import pt.receiptai.ui.importreview.DraftReceipt
+import pt.receiptai.ui.importreview.ImportUiState
+import pt.receiptai.ui.importreview.ImportViewModel
+import pt.receiptai.ui.importreview.ReviewScreen
 import pt.receiptai.ui.pantry.PantryScreen
 import pt.receiptai.ui.pantry.PantryViewModel
 import pt.receiptai.ui.recipes.RecipesScreen
@@ -185,6 +195,27 @@ class ScreenshotTest {
         compose.onNodeWithText(optional).performClick()
         compose.waitForIdle()
         captureScreenRoboImage("../docs/screenshots/4_receitas_opcional.png")
+    }
+
+    /** Ecrã Rever depois de importar um .zip com recibos e receitas: o cartão de resumo no topo. */
+    @Test
+    fun importarResumo() {
+        val vm = ImportViewModel(AppContainer(ApplicationProvider.getApplicationContext()) { today })
+        val state = ImportUiState.Review(
+            drafts = listOf(
+                DraftReceipt(
+                    "Mercado do Bairro", "15/11/2026",
+                    listOf(DraftItem(1, "Leite meio gordo 1L", "6", "5,34"), DraftItem(2, "Bananas", "1,2", "1,55")),
+                ),
+                DraftReceipt("Padaria Aurora", "17/11/2026", listOf(DraftItem(3, "Pão de mistura", "1", "1,20"))),
+            ),
+            rawText = "",
+            source = ReceiptSource.FICHEIRO,
+            type = ReceiptFileType.ZIP,
+            summary = ImportSummary("recibos-e-receitas.zip", fileCount = 7, readCount = 5, ignored = listOf("notas.docx", "foto-desfocada.jpg")),
+            recipes = RecipeImportCount(added = 3, alreadyExisted = 1),
+        )
+        shot("6_importar_resumo", dark = true) { ReviewScreen(state, vm) }
     }
 
     @Test fun despensa() = shot("5_despensa") { PantryScreen(pantryState(), initialTab = 0) }

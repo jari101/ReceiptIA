@@ -9,6 +9,10 @@ import java.util.zip.ZipOutputStream
 fun exampleFile(name: String): String =
     requireNotNull(object {}.javaClass.classLoader!!.getResource(name)) { "Falta o exemplo $name" }.readText()
 
+/** O mesmo, mas em bytes (para ficheiros binários como o .zip de exemplo). */
+fun exampleBytes(name: String): ByteArray =
+    requireNotNull(object {}.javaClass.classLoader!!.getResource(name)) { "Falta o exemplo $name" }.readBytes()
+
 /**
  * Cria um .zip em memória, por exemplo `zipOf("a.csv" to bytes, "pasta/" to null)`.
  * Um nome acabado em "/" com conteúdo null é uma pasta.

@@ -22,6 +22,12 @@ class FileTypeAndOcrTest {
         assertEquals(ReceiptFileType.CSV, t("a;b;c\n1;2;3\n4;5;6"))
         assertEquals(ReceiptFileType.TEXTO, t("LEITE 0,89\nTOTAL 0,89"))
         assertEquals(ReceiptFileType.CSV, t("a,b", mime = "text/csv", name = "x.csv"))
+        // Um ";" entre aspas não conta como separador.
+        assertEquals(ReceiptFileType.CSV, t(exampleFile("recibos-exemplo.csv")))
+        // Sem tipo nem nome: o conteúdo decide (texto sim, binário não).
+        assertEquals(ReceiptFileType.JSON, t("""{"nome":"Sopa"}""", mime = null))
+        assertEquals(null, FileTypeDetector.detect(null, null, byteArrayOf(1, 2, 3)))
+        assertEquals(null, FileTypeDetector.detect(null, null, ByteArray(0)))
     }
 
     @Test

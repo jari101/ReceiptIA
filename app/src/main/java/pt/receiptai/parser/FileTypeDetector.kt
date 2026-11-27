@@ -23,6 +23,8 @@ object FileTypeDetector {
             mime.contains("xml") || ext == "xml" -> ReceiptFileType.XML
             mime.contains("html") || ext in setOf("html", "htm") -> ReceiptFileType.HTML
             mime.startsWith("text/") || ext in setOf("txt", "text") -> textSniff(bytes)
+            // Sem tipo nem extensão (algumas apps não dizem o nome do ficheiro): se for texto, vemos o que parece.
+            (mime.isEmpty() || mime == "application/octet-stream") && ext.isEmpty() && looksLikeText(bytes) -> textSniff(bytes)
             else -> null
         }
     }
@@ -37,6 +39,15 @@ object FileTypeDetector {
             starts(0x50, 0x4B, 0x03, 0x04) || starts(0x50, 0x4B, 0x05, 0x06) -> ReceiptFileType.ZIP // "PK" (zip com ficheiros ou vazio)
             starts(0x52, 0x49, 0x46, 0x46) && bytes.size > 11 && String(bytes, 8, 4) == "WEBP" -> ReceiptFileType.IMAGEM
             else -> null
+        }
+    }
+
+    /** O início do ficheiro é texto? (não tem bytes "de controlo", que só aparecem em ficheiros binários) */
+    private fun looksLikeText(bytes: ByteArray): Boolean {
+        if (bytes.isEmpty()) return false
+        return bytes.take(2048).none { b ->
+            val c = b.toInt() and 0xFF
+            c < 0x09 || c in 0x0E..0x1F
         }
     }
 
@@ -57,8 +68,18 @@ object FileTypeDetector {
         val lines = head.lines().filter { it.isNotBlank() }.take(5)
         if (lines.size < 2) return false
         return listOf(';', '\t', ',').any { sep ->
-            val n = lines.first().count { it == sep }
-            n >= 2 && lines.all { it.count { c -> c == sep } == n }
+            val n = separators(lines.first(), sep)
+            n >= 2 && lines.all { separators(it, sep) == n }
         }
+    }
+
+    /** Conta os separadores de uma linha, sem contar os que estão entre aspas ("Queijo; fatias"). */
+    private fun separators(line: String, sep: Char): Int {
+        var inQuotes = false
+        var count = 0
+        for (c in line) {
+            if (c == '"') inQuotes = !inQuotes else if (c == sep && !inQuotes) count++
+        }
+        return count
     }
 }
