@@ -116,6 +116,10 @@
     <string name="recipes_have_of">Tens %1$d de %2$d ingredientes</string>
     <string name="recipes_have">Tens</string>
     <string name="recipes_missing">Falta</string>
+    <string name="recipes_optional">(opcional)</string>
+    <string name="recipes_optional_note">Podes fazer esta receita mesmo sem %1$s.</string>
+    <string name="recipes_optional_show_note">Ver nota</string>
+    <string name="new_recipe_optional">Opcional (a receita faz-se sem ele)</string>
     <string name="recipes_ingredients">Ingredientes</string>
     <string name="recipes_steps">Passos</string>
     <string name="recipes_add_missing">Adicionar o que falta à lista</string>

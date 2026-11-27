@@ -120,6 +120,29 @@ class DomainTest {
     }
 
     @Test
+    fun `ingrediente opcional em falta nao impede a receita`() {
+        val recipes = listOf(
+            RecipeInfo(1, "Omelete", MealType.JANTAR, 10, emptySet(), listOf("Ovos", "Queijo", "Espinafres"), optional = setOf("Queijo")),
+            RecipeInfo(2, "Tosta", MealType.LANCHE, 5, emptySet(), listOf("Pão", "Queijo", "Fiambre")),
+        )
+        val pantry = listOf("Ovos", "Espinafres", "Pão", "Fiambre")
+        val (omelete, tosta) = RecipeMatcher.match(recipes, pantry)
+
+        // Na omelete só falta o queijo, que é opcional: dá para fazer.
+        assertEquals("Omelete", omelete.recipe.name)
+        assertEquals(listOf("Queijo"), omelete.missing)
+        assertEquals(emptyList<String>(), omelete.missingRequired)
+        assertTrue(omelete.canCook)
+        assertEquals(1f, omelete.requiredCoverage)
+        // A barra continua a mostrar 2 de 3 (é a verdade: o queijo não está em casa).
+        assertEquals(2f / 3, omelete.coverage)
+
+        // Na tosta o queijo é obrigatório: não dá.
+        assertFalse(tosta.canCook)
+        assertEquals(listOf("Queijo"), tosta.missingRequired)
+    }
+
+    @Test
     fun `top produtos conta compras diferentes`() {
         val d = LocalDate.of(2026, 11, 1)
         val lines = listOf(

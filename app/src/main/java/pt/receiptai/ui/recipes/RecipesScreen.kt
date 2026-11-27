@@ -6,6 +6,27 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -181,7 +202,8 @@ private fun RecipeCard(card: RecipeCardData, expanded: Boolean, onToggle: () -> 
         Text(
             stringResource(R.string.recipes_have_of, card.match.have.size, recipe.ingredients.size),
             style = MaterialTheme.typography.labelLarge,
-            color = if (card.match.missing.isEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            // Verde quando já dá para fazer (mesmo que faltem ingredientes opcionais).
+            color = if (card.match.canCook) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
         )
         Spacer(Modifier.height(4.dp))
@@ -203,18 +225,12 @@ private fun RecipeCard(card: RecipeCardData, expanded: Boolean, onToggle: () -> 
                 Spacer(Modifier.height(8.dp))
                 Text(stringResource(R.string.recipes_ingredients), style = MaterialTheme.typography.titleSmall)
                 recipe.ingredients.forEach { ing ->
-                    val have = ing in card.match.have
-                    Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            if (have) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
-                            stringResource(if (have) R.string.recipes_have else R.string.recipes_missing),
-                            Modifier.size(18.dp),
-                            tint = if (have) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                        )
-                        Spacer(Modifier.size(8.dp))
-                        Text(ing, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                        Text(card.amounts[ing].orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    IngredientRow(
+                        name = ing,
+                        amount = card.amounts[ing].orEmpty(),
+                        have = ing in card.match.have,
+                        optional = ing in recipe.optional,
+                    )
                 }
                 if (card.match.missing.isNotEmpty()) {
                     TextButton(onClick = onAddMissing) {
@@ -239,5 +255,115 @@ private fun RecipeCard(card: RecipeCardData, expanded: Boolean, onToggle: () -> 
                 }
             }
         }
+    }
+}
+
+/**
+ * Um ingrediente do cartão: ✓ verde se o tens, ○ vermelho se falta.
+ * Os opcionais mostram "(opcional)". Se um opcional FALTA, tem um ⓘ e, ao tocar,
+ * aparece um balão por cima a dizer que a receita se faz sem ele.
+ */
+@Composable
+private fun IngredientRow(name: String, amount: String, have: Boolean, optional: Boolean) {
+    val hasNote = optional && !have
+    var showNote by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .then(
+                    if (hasNote) {
+                        Modifier.clickable(onClickLabel = stringResource(R.string.recipes_optional_show_note), role = Role.Button) { showNote = true }
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                if (have) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
+                stringResource(if (have) R.string.recipes_have else R.string.recipes_missing),
+                Modifier.size(18.dp),
+                tint = if (have) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.size(8.dp))
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Text(name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f, fill = false))
+                if (optional) {
+                    Spacer(Modifier.size(4.dp))
+                    Text(
+                        stringResource(R.string.recipes_optional),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (hasNote) {
+                    Spacer(Modifier.size(4.dp))
+                    Icon(Icons.Outlined.Info, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Spacer(Modifier.size(8.dp))
+            Text(amount, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (showNote) OptionalNote(name, onDismiss = { showNote = false })
+    }
+}
+
+/** O balão: aparece por cima do ingrediente, com um "biquinho" a apontar para o ○. Tocar fora fecha-o. */
+@Composable
+private fun OptionalNote(ingredient: String, onDismiss: () -> Unit) {
+    val gap = with(LocalDensity.current) { 2.dp.roundToPx() }
+    val bubble = MaterialTheme.colorScheme.surfaceContainerHigh
+    val border = MaterialTheme.colorScheme.outline
+    Popup(
+        popupPositionProvider = AboveStart(gap),
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = false, dismissOnClickOutside = true),
+    ) {
+        Column {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = bubble,
+                border = BorderStroke(1.dp, border),
+                shadowElevation = 6.dp,
+                modifier = Modifier.widthIn(max = 280.dp),
+            ) {
+                Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Info, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        stringResource(R.string.recipes_optional_note, ingredient.replaceFirstChar { it.lowercase() }),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+            // O "biquinho": um triângulo da cor do balão, com contorno nos 2 lados inclinados.
+            Canvas(Modifier.padding(start = 2.dp).offset(y = (-1).dp).size(width = 14.dp, height = 7.dp)) {
+                val tip = Offset(size.width / 2, size.height)
+                val triangle = Path().apply {
+                    moveTo(0f, 0f); lineTo(tip.x, tip.y); lineTo(size.width, 0f); close()
+                }
+                drawPath(triangle, bubble)
+                drawLine(border, Offset(0f, 0f), tip, strokeWidth = 1.dp.toPx())
+                drawLine(border, tip, Offset(size.width, 0f), strokeWidth = 1.dp.toPx())
+            }
+        }
+    }
+}
+
+/** Posição do balão: por cima do ingrediente, alinhado à esquerda (onde está o ○). */
+private data class AboveStart(private val gap: Int) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
+        val x = anchorBounds.left.coerceIn(0, maxX)
+        val y = (anchorBounds.top - popupContentSize.height - gap).coerceAtLeast(0)
+        return IntOffset(x, y)
     }
 }

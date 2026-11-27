@@ -123,6 +123,9 @@ class PantryRepository(private val db: ReceiptAiDatabase, private val today: () 
     }
 }
 
+/** Um ingrediente escrito no formulário "Nova receita" (ou lido de um ficheiro de receita). */
+data class IngredientInput(val name: String, val amount: String = "", val optional: Boolean = false)
+
 class RecipeRepository(private val db: ReceiptAiDatabase) {
     private val dao = db.recipeDao()
     val recipes: Flow<List<RecipeWithIngredients>> = dao.observeAll()
@@ -132,7 +135,7 @@ class RecipeRepository(private val db: ReceiptAiDatabase) {
         DemoData.recipes.forEach { r ->
             dao.insertWithIngredients(
                 RecipeEntity(name = r.name, mealType = r.mealType, minutes = r.minutes, steps = r.steps.joinToString("\n"), tags = r.tags),
-                r.ingredients.map { (n, a) -> RecipeIngredientEntity(name = n, amount = a) },
+                r.ingredients.map { (n, a) -> RecipeIngredientEntity(name = n, amount = a, optional = n in r.optional) },
             )
         }
     }
@@ -142,11 +145,11 @@ class RecipeRepository(private val db: ReceiptAiDatabase) {
         mealType: MealType,
         minutes: Int,
         tags: Set<DietTag>,
-        ingredients: List<Pair<String, String>>,
+        ingredients: List<IngredientInput>,
         steps: List<String>,
     ): Long = dao.insertWithIngredients(
         RecipeEntity(name = name.trim(), mealType = mealType, minutes = minutes, steps = steps.joinToString("\n"), tags = tags, isCustom = true),
-        ingredients.map { (n, a) -> RecipeIngredientEntity(name = n.trim(), amount = a.trim()) },
+        ingredients.map { RecipeIngredientEntity(name = it.name.trim(), amount = it.amount.trim(), optional = it.optional) },
     )
 
     suspend fun delete(id: Long) = dao.delete(id)
@@ -159,6 +162,7 @@ fun RecipeWithIngredients.toInfo() = RecipeInfo(
     minutes = recipe.minutes,
     tags = recipe.tags,
     ingredients = ingredients.map { it.name },
+    optional = ingredients.filter { it.optional }.map { it.name }.toSet(),
 )
 
 class ShoppingRepository(private val db: ReceiptAiDatabase) {

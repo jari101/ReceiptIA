@@ -1,6 +1,11 @@
 package pt.receiptai.ui.recipes
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
+import androidx.compose.ui.semantics.Role
+import pt.receiptai.data.repo.IngredientInput
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -65,11 +70,11 @@ fun NewRecipeScreen(onClose: () -> Unit) {
     var minutes by rememberSaveable { mutableStateOf("20") }
     var mealType by rememberSaveable { mutableStateOf(MealType.JANTAR) }
     val tags = remember { mutableStateListOf<DietTag>() }
-    val ingredients = remember { mutableStateListOf("" to "") }
+    val ingredients = remember { mutableStateListOf(IngredientInput("")) }
     val steps = remember { mutableStateListOf("") }
     var showErrors by remember { mutableStateOf(false) }
 
-    val validIngredients = ingredients.filter { it.first.isNotBlank() }
+    val validIngredients = ingredients.filter { it.name.isNotBlank() }
     val validSteps = steps.filter { it.isNotBlank() }
     val isValid = name.isNotBlank() && validIngredients.isNotEmpty() && validSteps.isNotEmpty()
 
@@ -118,22 +123,36 @@ fun NewRecipeScreen(onClose: () -> Unit) {
             }
 
             item { SectionTitle(stringResource(R.string.recipes_ingredients)) }
-            itemsIndexed(ingredients) { i, (ing, amount) ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        ing, { ingredients[i] = it to amount }, Modifier.weight(1.4f),
-                        label = { Text(stringResource(R.string.new_recipe_ingredient)) }, singleLine = true,
-                        isError = showErrors && validIngredients.isEmpty() && i == 0,
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    OutlinedTextField(amount, { ingredients[i] = ing to it }, Modifier.weight(1f), label = { Text(stringResource(R.string.new_recipe_amount)) }, singleLine = true)
-                    IconButton(onClick = { if (ingredients.size > 1) ingredients.removeAt(i) else ingredients[0] = "" to "" }) {
-                        Icon(Icons.Outlined.Close, stringResource(R.string.delete))
+            itemsIndexed(ingredients) { i, ing ->
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            ing.name, { ingredients[i] = ing.copy(name = it) }, Modifier.weight(1.4f),
+                            label = { Text(stringResource(R.string.new_recipe_ingredient)) }, singleLine = true,
+                            isError = showErrors && validIngredients.isEmpty() && i == 0,
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        OutlinedTextField(
+                            ing.amount, { ingredients[i] = ing.copy(amount = it) }, Modifier.weight(1f),
+                            label = { Text(stringResource(R.string.new_recipe_amount)) }, singleLine = true,
+                        )
+                        IconButton(onClick = { if (ingredients.size > 1) ingredients.removeAt(i) else ingredients[0] = IngredientInput("") }) {
+                            Icon(Icons.Outlined.Close, stringResource(R.string.delete))
+                        }
+                    }
+                    // ☐ Opcional: a linha inteira é tocável (não só o quadrado), para ser mais fácil acertar.
+                    Row(
+                        Modifier.toggleable(value = ing.optional, role = Role.Checkbox) { ingredients[i] = ing.copy(optional = it) },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = ing.optional, onCheckedChange = null, modifier = Modifier.padding(12.dp))
+                        Text(stringResource(R.string.new_recipe_optional), style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.size(12.dp))
                     }
                 }
             }
             item {
-                TextButton(onClick = { ingredients.add("" to "") }) {
+                TextButton(onClick = { ingredients.add(IngredientInput("")) }) {
                     Icon(Icons.Outlined.Add, null); Spacer(Modifier.size(6.dp)); Text(stringResource(R.string.new_recipe_add_ingredient))
                 }
             }

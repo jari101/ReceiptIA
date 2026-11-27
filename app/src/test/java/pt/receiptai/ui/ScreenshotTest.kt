@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
@@ -166,6 +167,26 @@ class ScreenshotTest {
     @Test fun registos() = shot("3_registos") { RecordsScreen(recordsState(), {}, {}, {}) }
     @Test fun registosEscuro() = shot("3_registos_escuro", dark = true) { RecordsScreen(recordsState(), {}, {}, {}) }
     @Test fun receitas() = shot("4_receitas") { RecipesScreen(recipesState(cookMode = true), {}, {}, {}, {}, {}, {}, {}) }
+    /** Uma receita a que falta um ingrediente OPCIONAL, com o balão aberto (tema escuro). */
+    @OptIn(ExperimentalRoborazziApi::class)
+    @Test
+    fun receitasOpcional() {
+        val all = recipesState(cookMode = false)
+        // A receita mais completa entre as que têm um ingrediente opcional em falta.
+        val card = all.recipes.filter { c -> c.match.missing.any { it in c.match.recipe.optional } }
+            .maxBy { it.match.requiredCoverage }
+        val optional = card.match.missing.first { it in card.match.recipe.optional }
+        val state = all.copy(recipes = listOf(card), expanded = setOf(card.match.recipe.id))
+        compose.setContent {
+            ReceiptAiTheme(darkTheme = true) {
+                Surface(color = MaterialTheme.colorScheme.background) { RecipesScreen(state, {}, {}, {}, {}, {}, {}, {}) }
+            }
+        }
+        compose.onNodeWithText(optional).performClick()
+        compose.waitForIdle()
+        captureScreenRoboImage("../docs/screenshots/4_receitas_opcional.png")
+    }
+
     @Test fun despensa() = shot("5_despensa") { PantryScreen(pantryState(), initialTab = 0) }
     @Test fun listaDeCompras() = shot("5_lista_compras") { PantryScreen(pantryState(), initialTab = 1) }
 }

@@ -1,5 +1,6 @@
 package pt.receiptai.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -99,6 +100,11 @@ data class RecipeIngredientEntity(
     val recipeId: Long = 0,
     val name: String,
     val amount: String,
+    /**
+     * true = a receita faz-se mesmo sem este ingrediente (ex.: o queijo na omelete).
+     * Coluna nova na versão 2 da base de dados; nas linhas antigas fica 0 (falso).
+     */
+    @ColumnInfo(defaultValue = "0") val optional: Boolean = false,
 )
 
 data class RecipeWithIngredients(
