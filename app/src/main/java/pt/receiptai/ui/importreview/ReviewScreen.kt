@@ -18,7 +18,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.FileCopy
+import androidx.compose.material.icons.outlined.FolderZip
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.RestaurantMenu
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -40,7 +43,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import pt.receiptai.R
 import pt.receiptai.domain.Money
 import pt.receiptai.ui.components.AppCard
+import pt.receiptai.ui.recipesAddedText
 
 /**
  * "Rever recibo": o OCR nunca é perfeito, por isso o utilizador confirma
@@ -85,10 +91,14 @@ fun ReviewScreen(state: ImportUiState.Review, vm: ImportViewModel) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Info, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.size(8.dp))
-                    Text(stringResource(R.string.review_hint, state.type.name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state.summary != null || state.recipes != null) {
+                    ImportSummaryCard(state)
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Info, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.review_hint, state.type.name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
             state.drafts.forEachIndexed { index, draft ->
@@ -166,5 +176,60 @@ private fun DraftItemRow(receipt: Int, item: DraftItem, vm: ImportViewModel) {
             isError = Money.parseToCents(item.price) == null,
         )
         IconButton(onClick = { vm.removeItem(receipt, item.key) }) { Icon(Icons.Outlined.Close, stringResource(R.string.delete)) }
+    }
+}
+
+/**
+ * Resumo de uma importação com vários ficheiros ou um .zip:
+ * de onde vieram, quantos foram lidos, as receitas que já entraram e os ficheiros ignorados.
+ */
+@Composable
+private fun ImportSummaryCard(state: ImportUiState.Review) {
+    val summary = state.summary
+    AppCard {
+        if (summary != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (summary.zipName != null) Icons.Outlined.FolderZip else Icons.Outlined.FileCopy,
+                    null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    summary.zipName ?: pluralStringResource(R.plurals.files_chosen, summary.fileCount, summary.fileCount),
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.import_summary_read, summary.readCount, summary.fileCount) + " · " +
+                    pluralStringResource(R.plurals.receipts_to_review, state.drafts.size, state.drafts.size),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        state.recipes?.let { recipes ->
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.RestaurantMenu, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.size(6.dp))
+                Text(recipesAddedText(recipes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+        if (summary != null && summary.ignored.isNotEmpty()) {
+            // Mostra no máximo 5 nomes, para o cartão não ficar enorme.
+            val shown = summary.ignored.take(5).joinToString(", ")
+            val more = summary.ignored.size - 5
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.import_ignored, if (more > 0) "$shown ${stringResource(R.string.import_ignored_more, more)}" else shown),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.review_hint_short), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

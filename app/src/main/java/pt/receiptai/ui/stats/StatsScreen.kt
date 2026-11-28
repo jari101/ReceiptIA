@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pt.receiptai.R
+import pt.receiptai.domain.ChartStyle
 import pt.receiptai.domain.Money
 import pt.receiptai.domain.StatsPeriod
 import pt.receiptai.domain.TopItem
@@ -55,17 +57,31 @@ import pt.receiptai.ui.components.appViewModel
 import pt.receiptai.ui.components.label
 import pt.receiptai.ui.theme.LocalStatusColors
 
+/** @param onOpenReceipt chamado quando se toca num recibo do popup do gráfico. */
 @Composable
-fun StatsRoute() {
+fun StatsRoute(onOpenReceipt: (Long) -> Unit) {
     val vm = appViewModel { StatsViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
-    StatsScreen(state, vm::setPeriod, vm::previous, vm::next)
+    StatsScreen(state, vm::setPeriod, vm::previous, vm::next, onOpenReceipt, vm::setChartStyle)
 }
 
 @Composable
-fun StatsScreen(state: StatsUiState, onPeriod: (StatsPeriod) -> Unit, onPrevious: () -> Unit, onNext: () -> Unit) {
+fun StatsScreen(
+    state: StatsUiState,
+    onPeriod: (StatsPeriod) -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onOpenReceipt: (Long) -> Unit = {},
+    onChartStyle: (ChartStyle) -> Unit = {},
+) {
     val summary = state.summary
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    val listState = rememberLazyListState()
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        state = listState,
+        contentPadding = ScreenPadding,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
         item { ScreenTitle(stringResource(R.string.stats_title), stringResource(R.string.stats_subtitle)) }
 
         item {
@@ -122,7 +138,35 @@ fun StatsScreen(state: StatsUiState, onPeriod: (StatsPeriod) -> Unit, onPrevious
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(16.dp))
-                BarChart(summary.buckets)
+                val scrolling = listState.isScrollInProgress
+                // O gráfico escolhido no menu. Ao trocar, o novo gráfico entra com a sua animação.
+                when (state.chartStyle) {
+                    ChartStyle.BARRAS -> BarChart(
+                        summary.buckets,
+                        popupTitle = { Dates.bucketTitle(state.period, it.from, it.to) },
+                        onOpenReceipt = onOpenReceipt,
+                        scrolling = scrolling,
+                    )
+                    ChartStyle.RETA, ChartStyle.CURVA -> LineChart(
+                        summary.points,
+                        onOpenReceipt,
+                        curved = state.chartStyle == ChartStyle.CURVA,
+                        scrolling = scrolling,
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                ChartStyleMenu(state.chartStyle, onChartStyle)
+                if (summary.receiptCount > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.TouchApp, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.size(6.dp))
+                        Text(
+                            stringResource(R.string.stats_chart_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
 

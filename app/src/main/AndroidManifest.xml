@@ -25,15 +25,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- "Partilhar com ReceiptAI": recibos vindos do e-mail, do browser, etc. -->
+            <!-- "Partilhar com ReceiptAI": recibos (um ou vários) vindos do e-mail, do browser, etc. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/pdf" />
                 <data android:mimeType="image/*" />
                 <data android:mimeType="text/*" />
                 <data android:mimeType="application/json" />
                 <data android:mimeType="application/xml" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
             </intent-filter>
 
             <!-- "Abrir com ReceiptAI" a partir de um gestor de ficheiros. -->
@@ -46,6 +49,7 @@
                 <data android:mimeType="application/xml" />
                 <data android:mimeType="text/csv" />
                 <data android:mimeType="text/xml" />
+                <data android:mimeType="application/zip" />
             </intent-filter>
         </activity>
 

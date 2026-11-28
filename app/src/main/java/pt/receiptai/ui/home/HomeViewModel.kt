@@ -10,12 +10,14 @@ import kotlinx.coroutines.launch
 import pt.receiptai.AppContainer
 import pt.receiptai.data.db.PantryItemEntity
 import pt.receiptai.data.db.ReceiptWithItems
+import pt.receiptai.data.db.ShoppingItemEntity
 import pt.receiptai.domain.StatsCalculator
 import pt.receiptai.domain.StatsPeriod
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-data class AlertItem(val id: Long, val name: String, val daysLeft: Long)
+/** Um alerta de validade. [onList] = já está (por comprar) na lista de compras. */
+data class AlertItem(val id: Long, val name: String, val daysLeft: Long, val onList: Boolean = false)
 
 data class LastPurchase(val store: String, val date: LocalDate, val totalCents: Long, val itemCount: Int)
 
@@ -35,11 +37,20 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         container.receipts.receiptTotals,
         container.receipts.latest,
         container.pantry.active,
-    ) { count, totals, latest, pantry -> buildState(count, totals, latest, pantry, container.today()) }
+        container.shopping.items,
+    ) { count, totals, latest, pantry, shopping -> buildState(count, totals, latest, pantry, shopping, container.today()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     fun loadDemoData() {
         viewModelScope.launch { container.receipts.loadDemoData() }
+    }
+
+    /** Botão 🛒 de um alerta: junta o produto à lista de compras. Devolve o id (para o "Anular"). */
+    suspend fun addToShopping(alert: AlertItem): Long? = container.shopping.add(alert.name)
+
+    /** "Anular" na mensagem: tira da lista o produto que acabou de ser adicionado. */
+    fun removeFromShopping(id: Long) {
+        viewModelScope.launch { container.shopping.deleteById(id) }
     }
 
     companion object {
@@ -49,8 +60,11 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             totals: List<Pair<LocalDate, Long>>,
             latest: ReceiptWithItems?,
             pantry: List<PantryItemEntity>,
+            shopping: List<ShoppingItemEntity>,
             today: LocalDate,
         ): HomeUiState {
+            // Produtos que ainda estão por comprar na lista (os já riscados não contam).
+            val onList = shopping.filter { !it.checked }.map { it.normalizedName }.toSet()
             val month = StatsCalculator.range(StatsPeriod.MES, today)
             val inMonth = totals.filter { it.first in month }
             return HomeUiState(
@@ -59,7 +73,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                 monthTotalCents = inMonth.sumOf { it.second },
                 monthReceipts = inMonth.size,
                 lastPurchase = latest?.let { LastPurchase(it.receipt.storeName, it.receipt.purchasedOn, it.receipt.totalCents, it.items.size) },
-                alerts = pantry.map { AlertItem(it.id, it.name, ChronoUnit.DAYS.between(today, it.expiresOn)) }
+                alerts = pantry.map { AlertItem(it.id, it.name, ChronoUnit.DAYS.between(today, it.expiresOn), it.normalizedName in onList) }
                     .filter { it.daysLeft <= 2 }
                     .take(5),
             )

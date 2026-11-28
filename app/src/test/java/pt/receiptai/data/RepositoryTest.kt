@@ -15,9 +15,13 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import pt.receiptai.data.db.ReceiptAiDatabase
 import pt.receiptai.data.repo.ReceiptRepository
+import pt.receiptai.data.repo.RecipeImportCount
 import pt.receiptai.data.repo.RecipeRepository
 import pt.receiptai.data.repo.ShoppingRepository
+import pt.receiptai.domain.MealType
 import pt.receiptai.domain.ReceiptSource
+import pt.receiptai.parser.ParsedIngredient
+import pt.receiptai.parser.ParsedRecipe
 import pt.receiptai.parser.ReceiptTextParser
 import pt.receiptai.parser.exampleFile
 import java.time.LocalDate
@@ -93,5 +97,33 @@ class RepositoryTest {
         shopping.toggle(shopping.items.first().first { it.name == "Leite" })
         shopping.clearChecked()
         assertEquals(listOf("Pão"), shopping.items.first().map { it.name })
+
+        // "Anular": o id devolvido pelo add serve para tirar logo o produto da lista.
+        val id = shopping.add("Bananas")!!
+        assertEquals(listOf("Bananas", "Pão"), shopping.items.first().map { it.name })
+        shopping.deleteById(id)
+        assertEquals(listOf("Pão"), shopping.items.first().map { it.name })
+        assertEquals(null, shopping.add("   "))
+    }
+
+    @Test
+    fun `receitas importadas com o mesmo nome nao se duplicam`() = runBlocking {
+        val recipes = RecipeRepository(db)
+        recipes.seedIfEmpty()
+        val before = recipes.recipes.first().size
+        val bacalhau = ParsedRecipe(
+            "Bacalhau à Brás", MealType.JANTAR, 30, emptySet(),
+            listOf(ParsedIngredient("Ovos", "5"), ParsedIngredient("Salsa", optional = true)), listOf("Mexe."),
+        )
+        // "OMELETE de espinafres" já existe (vem com a app); o bacalhau aparece 2 vezes no mesmo lote.
+        val omelete = bacalhau.copy(name = "OMELETE de espinafres")
+        val count = recipes.addImported(listOf(bacalhau, omelete, bacalhau))
+        assertEquals(RecipeImportCount(added = 1, alreadyExisted = 2), count)
+
+        val all = recipes.recipes.first()
+        assertEquals(before + 1, all.size)
+        val saved = all.single { it.recipe.name == "Bacalhau à Brás" }
+        assertTrue(saved.recipe.isCustom) // pode ser apagada pelo utilizador
+        assertEquals(listOf(false, true), saved.ingredients.sortedBy { it.id }.map { it.optional })
     }
 }

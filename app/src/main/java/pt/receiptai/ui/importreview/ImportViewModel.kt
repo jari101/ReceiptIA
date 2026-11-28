@@ -12,7 +12,10 @@ import pt.receiptai.domain.Money
 import pt.receiptai.domain.ReceiptSource
 import pt.receiptai.domain.formatQuantity
 import pt.receiptai.domain.parseQuantity
+import pt.receiptai.data.repo.RecipeImportCount
+import pt.receiptai.importer.ImportProgress
 import pt.receiptai.importer.ImportResult
+import pt.receiptai.importer.ImportSummary
 import pt.receiptai.parser.ParsedItem
 import pt.receiptai.parser.ParsedReceipt
 import pt.receiptai.parser.ReceiptFileType
@@ -28,13 +31,20 @@ data class DraftReceipt(val storeName: String, val date: String, val items: List
 
 sealed interface ImportUiState {
     data object Idle : ImportUiState
-    data object Loading : ImportUiState
+
+    /** A ler. Com vários ficheiros (ou um .zip), [progress] diz qual vai a ser lido. */
+    data class Loading(val progress: ImportProgress? = null) : ImportUiState
+
     data class Review(
         val drafts: List<DraftReceipt>,
         val rawText: String,
         val source: ReceiptSource,
         val type: ReceiptFileType,
         val error: String? = null,
+        /** Resumo quando vieram vários ficheiros ou um .zip (quantos lidos, quais ignorados). */
+        val summary: ImportSummary? = null,
+        /** Receitas que vieram no meio dos recibos e já foram guardadas. */
+        val recipes: RecipeImportCount? = null,
     ) : ImportUiState
     data class Error(val message: String) : ImportUiState
 }
@@ -51,9 +61,18 @@ class ImportViewModel(private val container: AppContainer) : ViewModel() {
     private val _saved = MutableStateFlow<Int?>(null)
     val saved: StateFlow<Int?> = _saved.asStateFlow()
 
+    /** Receitas importadas SEM recibos: a app mostra a mensagem e abre o separador Receitas. */
+    private val _recipesAdded = MutableStateFlow<RecipeImportCount?>(null)
+    val recipesAdded: StateFlow<RecipeImportCount?> = _recipesAdded.asStateFlow()
+
     private var nextKey = 0L
 
-    fun importUri(uri: Uri, source: ReceiptSource) = run(source) { container.importer.fromUri(uri) }
+    fun importUri(uri: Uri, source: ReceiptSource) = importUris(listOf(uri), source)
+
+    /** Um ou vários ficheiros de uma vez (também .zip, com recibos e/ou receitas). */
+    fun importUris(uris: List<Uri>, source: ReceiptSource) = run(source) { onProgress ->
+        container.importer.fromUris(uris, onProgress)
+    }
     fun importUrl(url: String) = run(ReceiptSource.LINK) { container.importer.fromUrl(url) }
     fun importScanned(pages: List<Uri>) = run(ReceiptSource.CAMARA) { container.importer.fromScannedPages(pages) }
     fun importSharedText(text: String) = run(ReceiptSource.PARTILHA) { container.importer.fromSharedText(text) }
@@ -63,11 +82,24 @@ class ImportViewModel(private val container: AppContainer) : ViewModel() {
         _state.value = ImportUiState.Review(listOf(toDraft(ParsedReceipt("", null, emptyList()))), "", ReceiptSource.MANUAL, ReceiptFileType.TEXTO)
     }
 
-    private fun run(source: ReceiptSource, block: suspend () -> ImportResult) {
-        _state.value = ImportUiState.Loading
+    private fun run(source: ReceiptSource, block: suspend (onProgress: (ImportProgress) -> Unit) -> ImportResult) {
+        _state.value = ImportUiState.Loading()
         viewModelScope.launch {
-            _state.value = when (val result = block()) {
-                is ImportResult.Success -> ImportUiState.Review(result.receipts.map(::toDraft), result.rawText, source, result.type)
+            val result = block { progress -> _state.value = ImportUiState.Loading(progress) }
+            _state.value = when (result) {
+                is ImportResult.Success -> {
+                    // As receitas não precisam de revisão: são guardadas logo.
+                    val recipes = if (result.recipes.isNotEmpty()) container.recipes.addImported(result.recipes) else null
+                    if (result.receipts.isEmpty()) {
+                        _recipesAdded.value = recipes
+                        ImportUiState.Idle
+                    } else {
+                        ImportUiState.Review(
+                            result.receipts.map(::toDraft), result.rawText, source, result.type,
+                            summary = result.summary, recipes = recipes,
+                        )
+                    }
+                }
                 is ImportResult.Failure -> ImportUiState.Error(result.message)
             }
         }
@@ -121,4 +153,5 @@ class ImportViewModel(private val container: AppContainer) : ViewModel() {
 
     fun cancel() { _state.value = ImportUiState.Idle }
     fun consumeSaved() { _saved.value = null }
+    fun consumeRecipesAdded() { _recipesAdded.value = null }
 }

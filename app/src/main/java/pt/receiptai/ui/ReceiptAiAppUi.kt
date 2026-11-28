@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,7 +71,9 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import pt.receiptai.R
+import pt.receiptai.data.repo.RecipeImportCount
 import pt.receiptai.domain.ReceiptSource
+import pt.receiptai.importer.ImportProgress
 import pt.receiptai.ui.components.appViewModel
 import pt.receiptai.ui.home.HomeRoute
 import pt.receiptai.ui.importreview.ImportUiState
@@ -96,6 +99,8 @@ enum class Tab(val route: String, val icon: ImageVector, val label: Int) {
 /** Conteúdo recebido de outra app (partilhar / abrir com). */
 sealed interface SharedContent {
     data class File(val uri: Uri) : SharedContent
+    /** Vários ficheiros partilhados de uma vez (ex.: 3 PDFs escolhidos no e-mail). */
+    data class Files(val uris: List<Uri>) : SharedContent
     data class Text(val text: String) : SharedContent
     data object OpenPantry : SharedContent
 }
@@ -114,10 +119,12 @@ fun ReceiptAiAppUi(shared: SharedContent?, onSharedConsumed: () -> Unit) {
     var showSheet by rememberSaveable { mutableStateOf(false) }
     var showLinkDialog by rememberSaveable { mutableStateOf(false) }
     var pantryTab by rememberSaveable { mutableStateOf(0) }
+    // Recibo a abrir nos Registos (tocado no popup do gráfico das Estatísticas).
+    var focusReceipt by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    // ---------- Escolher ficheiro (PDF, imagem, CSV, JSON, XML, TXT, HTML) ----------
-    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { importVm.importUri(it, ReceiptSource.FICHEIRO) }
+    // ---------- Escolher ficheiros: um ou VÁRIOS de uma vez (PDF, imagem, CSV, JSON, XML, TXT, HTML, ZIP) ----------
+    val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) importVm.importUris(uris, ReceiptSource.FICHEIRO)
     }
     // ---------- Câmara: foto simples (se o scanner do Google não estiver disponível) ----------
     var photoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
@@ -162,6 +169,7 @@ fun ReceiptAiAppUi(shared: SharedContent?, onSharedConsumed: () -> Unit) {
     LaunchedEffect(shared) {
         when (shared) {
             is SharedContent.File -> importVm.importUri(shared.uri, ReceiptSource.PARTILHA)
+            is SharedContent.Files -> importVm.importUris(shared.uris, ReceiptSource.PARTILHA)
             is SharedContent.Text -> importVm.importSharedText(shared.text)
             SharedContent.OpenPantry -> { pantryTab = 0; nav.navigateTab(Tab.DESPENSA) }
             null -> Unit
@@ -176,6 +184,17 @@ fun ReceiptAiAppUi(shared: SharedContent?, onSharedConsumed: () -> Unit) {
             nav.navigateTab(Tab.REGISTOS)
             snackbar.showSnackbar(savedMessage)
             importVm.consumeSaved()
+        }
+    }
+
+    // Só vieram receitas (sem recibos): mensagem + ir para as Receitas.
+    val recipesAdded by importVm.recipesAdded.collectAsStateWithLifecycle()
+    val recipesMessage = recipesAdded?.let { recipesAddedText(it) }
+    LaunchedEffect(recipesAdded) {
+        if (recipesMessage != null) {
+            nav.navigateTab(Tab.RECEITAS)
+            snackbar.showSnackbar(recipesMessage)
+            importVm.consumeRecipesAdded()
         }
     }
 
@@ -216,16 +235,21 @@ fun ReceiptAiAppUi(shared: SharedContent?, onSharedConsumed: () -> Unit) {
                         onOpenRecords = { nav.navigateTab(Tab.REGISTOS) },
                         onOpenPantry = { pantryTab = 0; nav.navigateTab(Tab.DESPENSA) },
                         onOpenStats = { nav.navigateTab(Tab.ESTATISTICAS) },
+                        snackbar = snackbar,
                     )
                 }
-                composable(Tab.ESTATISTICAS.route) { StatsRoute() }
-                composable(Tab.REGISTOS.route) { RecordsRoute() }
+                composable(Tab.ESTATISTICAS.route) {
+                    StatsRoute(onOpenReceipt = { id -> focusReceipt = id; nav.navigateTab(Tab.REGISTOS) })
+                }
+                composable(Tab.REGISTOS.route) {
+                    RecordsRoute(focusReceiptId = focusReceipt, onFocusHandled = { focusReceipt = null })
+                }
                 composable(Tab.RECEITAS.route) { RecipesRoute(onNewRecipe = { nav.navigate("receita/nova") }) }
                 composable(Tab.DESPENSA.route) { PantryRoute(initialTab = pantryTab) }
                 composable("receita/nova") { NewRecipeScreen(onClose = { nav.popBackStack() }) }
             }
 
-            if (importState == ImportUiState.Loading) LoadingOverlay()
+            (importState as? ImportUiState.Loading)?.let { LoadingOverlay(it.progress) }
         }
     }
 
@@ -235,10 +259,11 @@ fun ReceiptAiAppUi(shared: SharedContent?, onSharedConsumed: () -> Unit) {
                 Text(stringResource(R.string.import_sheet_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                 SheetOption(Icons.Outlined.UploadFile, R.string.import_file, R.string.import_file_hint) {
                     showSheet = false
-                    pickFile.launch(
+                    pickFiles.launch(
                         arrayOf(
                             "application/pdf", "image/*", "text/*", "application/json", "application/xml",
                             "text/xml", "text/csv", "text/comma-separated-values", "text/html",
+                            "application/zip", "application/x-zip-compressed",
                         ),
                     )
                 }
@@ -281,18 +306,45 @@ private fun SheetOption(icon: ImageVector, title: Int, hint: Int, onClick: () ->
     )
 }
 
+/** Ecrã de espera. Com vários ficheiros mostra "A ler 3 de 12" e o nome do ficheiro. */
 @Composable
-private fun LoadingOverlay() {
+private fun LoadingOverlay(progress: ImportProgress?) {
     Box(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 0.85f)),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Column(
+            Modifier.padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
             CircularProgressIndicator()
             Spacer(Modifier.size(16.dp))
-            Text(stringResource(R.string.import_loading), style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (progress != null && progress.total > 1) stringResource(R.string.import_progress, progress.index, progress.total)
+                else stringResource(R.string.import_loading),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            if (progress != null && progress.total > 1) {
+                Text(
+                    progress.fileName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
+}
+
+/** "3 receitas adicionadas às Receitas · 1 já existia" (ou "Estas receitas já existiam."). */
+@Composable
+fun recipesAddedText(count: RecipeImportCount): String {
+    if (count.added == 0) return stringResource(R.string.recipes_import_none)
+    val added = pluralStringResource(R.plurals.recipes_added, count.added, count.added)
+    return if (count.alreadyExisted == 0) added
+    else added + " · " + pluralStringResource(R.plurals.recipes_already_existed, count.alreadyExisted, count.alreadyExisted)
 }
 
 /** Navegar entre separadores sem empilhar ecrãs repetidos. */

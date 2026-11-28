@@ -1,0 +1,26 @@
+{
+  "formato": "receiptai-receita-v1",
+  "receitas": [
+    {
+      "nome": "Arroz de pato",
+      "refeicao": "almoço",
+      "minutos": 60,
+      "dietas": ["Sem glúten"],
+      "ingredientes": [
+        { "nome": "Pato", "quantidade": "1/2" },
+        { "nome": "Arroz", "quantidade": "300 g" },
+        { "nome": "Chouriço", "quantidade": "1", "opcional": true },
+        { "nome": "Cebola", "quantidade": "1" }
+      ],
+      "passos": "Coze o pato com a cebola.\nDesfia o pato e coze o arroz na água da cozedura.\nJunta tudo num tabuleiro com o chouriço às rodelas e leva ao forno 15 minutos."
+    },
+    {
+      "nome": "Torradas com abacate",
+      "refeicao": "pequeno-almoço",
+      "minutos": 5,
+      "dietas": ["vegetariano", "sem-lactose"],
+      "ingredientes": ["Pão", "Abacate", { "nome": "Limão", "opcional": true }],
+      "passos": ["Torra o pão.", "Esmaga o abacate com sumo de limão e barra as torradas."]
+    }
+  ]
+}

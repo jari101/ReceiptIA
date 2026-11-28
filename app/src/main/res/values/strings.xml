@@ -25,7 +25,7 @@
 
     <!-- Início -->
     <string name="home_import_title">Importar recibo</string>
-    <string name="home_import_subtitle">PDF, foto, link, CSV, JSON ou XML</string>
+    <string name="home_import_subtitle">PDF, foto, link, CSV, JSON, XML ou ZIP</string>
     <string name="home_empty_title">Ainda não há compras</string>
     <string name="home_empty_message">Importa o teu primeiro recibo ou experimenta a app com 3 meses de compras de exemplo.</string>
     <string name="home_load_demo">Experimentar com dados de exemplo</string>
@@ -34,11 +34,15 @@
     <string name="home_see_pantry">Ver despensa</string>
     <string name="home_no_alerts">Nada a expirar nos próximos dias.</string>
     <string name="home_last_purchase">Última compra</string>
+    <string name="home_add_to_list">Adicionar %1$s à lista de compras</string>
+    <string name="home_on_list">%1$s já está na lista de compras</string>
+    <string name="home_added_to_list">%1$s adicionado à lista de compras</string>
+    <string name="undo">Anular</string>
 
     <!-- Importar -->
     <string name="import_sheet_title">Como queres adicionar o recibo?</string>
-    <string name="import_file">Escolher ficheiro</string>
-    <string name="import_file_hint">PDF, imagem, CSV, JSON, XML (e-fatura), HTML ou TXT</string>
+    <string name="import_file">Escolher ficheiros</string>
+    <string name="import_file_hint">Um ou vários: PDF, imagem, CSV, JSON, XML (e-fatura), HTML, TXT ou ZIP. Também receitas em JSON.</string>
     <string name="import_camera">Digitalizar com a câmara</string>
     <string name="import_camera_hint">Tira uma foto ao recibo de papel</string>
     <string name="import_link">Colar link (URL)</string>
@@ -47,6 +51,12 @@
     <string name="import_manual">Escrever à mão</string>
     <string name="import_manual_hint">Adicionar os produtos manualmente</string>
     <string name="import_loading">A ler o recibo…</string>
+    <string name="import_progress">A ler %1$d de %2$d…</string>
+    <string name="import_summary_read">Li %1$d de %2$d ficheiros</string>
+    <string name="import_ignored">Ignorados: %1$s</string>
+    <string name="import_ignored_more">e mais %1$d</string>
+    <string name="review_hint_short">Confirma os produtos e os preços antes de guardar.</string>
+    <string name="recipes_import_none">Estas receitas já existiam.</string>
     <string name="import_error_title">Não foi possível ler o recibo</string>
 
     <!-- Rever -->
@@ -82,6 +92,14 @@
     <string name="stats_quantity">qtd. %1$s</string>
     <string name="stats_empty_title">Sem compras neste período</string>
     <string name="stats_empty_message">Muda de período ou importa recibos.</string>
+    <string name="stats_chart_hint">Arrasta o dedo no gráfico para ver cada recibo</string>
+    <string name="stats_chart_description">Gráfico de linha com uma compra por ponto: %1$s</string>
+    <string name="stats_open_receipt">Abrir recibo</string>
+    <string name="stats_chart_style_current">Linha atual: %1$s</string>
+    <string name="stats_chart_style_change">Mudar o tipo de gráfico</string>
+    <string name="chart_style_bars">Barras</string>
+    <string name="chart_style_straight">Reta</string>
+    <string name="chart_style_curved">Curva</string>
 
     <!-- Registos -->
     <string name="records_title">Registos</string>
@@ -104,6 +122,10 @@
     <string name="recipes_have_of">Tens %1$d de %2$d ingredientes</string>
     <string name="recipes_have">Tens</string>
     <string name="recipes_missing">Falta</string>
+    <string name="recipes_optional">(opcional)</string>
+    <string name="recipes_optional_note">Podes fazer esta receita mesmo sem %1$s.</string>
+    <string name="recipes_optional_show_note">Ver nota</string>
+    <string name="new_recipe_optional">Opcional (a receita faz-se sem ele)</string>
     <string name="recipes_ingredients">Ingredientes</string>
     <string name="recipes_steps">Passos</string>
     <string name="recipes_add_missing">Adicionar o que falta à lista</string>
@@ -205,6 +227,31 @@
         <item quantity="one">Recibo guardado!</item>
         <item quantity="many">%d recibos guardados!</item>
         <item quantity="other">%d recibos guardados!</item>
+    </plurals>
+    <plurals name="receipts_on_day">
+        <item quantity="one">%d recibo</item>
+        <item quantity="many">%d recibos</item>
+        <item quantity="other">%d recibos</item>
+    </plurals>
+    <plurals name="files_chosen">
+        <item quantity="one">%d ficheiro escolhido</item>
+        <item quantity="many">%d ficheiros escolhidos</item>
+        <item quantity="other">%d ficheiros escolhidos</item>
+    </plurals>
+    <plurals name="receipts_to_review">
+        <item quantity="one">%d recibo para rever</item>
+        <item quantity="many">%d recibos para rever</item>
+        <item quantity="other">%d recibos para rever</item>
+    </plurals>
+    <plurals name="recipes_added">
+        <item quantity="one">%d receita adicionada às Receitas</item>
+        <item quantity="many">%d receitas adicionadas às Receitas</item>
+        <item quantity="other">%d receitas adicionadas às Receitas</item>
+    </plurals>
+    <plurals name="recipes_already_existed">
+        <item quantity="one">%d já existia</item>
+        <item quantity="many">%d já existiam</item>
+        <item quantity="other">%d já existiam</item>
     </plurals>
     <plurals name="times_bought">
         <item quantity="one">comprado %d vez</item>

@@ -8,6 +8,8 @@ data class RecipeInfo(
     val minutes: Int,
     val tags: Set<DietTag>,
     val ingredients: List<String>,
+    /** Ingredientes sem os quais a receita também se faz. */
+    val optional: Set<String> = emptySet(),
 )
 
 data class RecipeMatch(
@@ -15,8 +17,22 @@ data class RecipeMatch(
     val have: List<String>,
     val missing: List<String>,
 ) {
-    /** Percentagem de ingredientes que já existem em casa (0..1). */
+    /** Percentagem de ingredientes que já existem em casa (0..1). É a barra verde do cartão. */
     val coverage: Float get() = if (recipe.ingredients.isEmpty()) 0f else have.size.toFloat() / recipe.ingredients.size
+
+    /** O que falta e é MESMO preciso. */
+    val missingRequired: List<String> get() = missing.filterNot { it in recipe.optional }
+
+    /** true = dá para fazer já (só faltam, no máximo, ingredientes opcionais). */
+    val canCook: Boolean get() = missingRequired.isEmpty()
+
+    /** Como [coverage], mas só com os ingredientes obrigatórios: um opcional em falta não conta. */
+    val requiredCoverage: Float
+        get() {
+            val required = recipe.ingredients.filterNot { it in recipe.optional }
+            if (required.isEmpty()) return 1f
+            return (required.size - missingRequired.size).toFloat() / required.size
+        }
 }
 
 /**
@@ -43,9 +59,11 @@ object RecipeMatcher {
                 }
                 RecipeMatch(recipe, have, missing)
             }
+            // Primeiro as que dá para fazer (os opcionais em falta não contam), depois as mais completas.
             .sortedWith(
-                compareByDescending<RecipeMatch> { it.coverage }
-                    .thenBy { it.missing.size }
+                compareByDescending<RecipeMatch> { it.requiredCoverage }
+                    .thenByDescending { it.coverage }
+                    .thenBy { it.missingRequired.size }
                     .thenBy { it.recipe.name },
             )
 }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -38,6 +39,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,18 +68,52 @@ import pt.receiptai.ui.components.ScreenTitle
 import pt.receiptai.ui.components.appViewModel
 import pt.receiptai.ui.theme.EaseOutStrong
 
+/**
+ * @param focusReceiptId recibo a mostrar já aberto (vem do gráfico das Estatísticas), ou null.
+ * @param onFocusHandled chamado depois de o pedido ser entregue ao ViewModel.
+ */
 @Composable
-fun RecordsRoute() {
+fun RecordsRoute(focusReceiptId: Long? = null, onFocusHandled: () -> Unit = {}) {
     val vm = appViewModel { RecordsViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
-    RecordsScreen(state, vm::setQuery, vm::toggle, vm::delete)
+    LaunchedEffect(focusReceiptId) {
+        if (focusReceiptId != null) {
+            vm.focus(focusReceiptId)
+            onFocusHandled()
+        }
+    }
+    RecordsScreen(state, vm::setQuery, vm::toggle, vm::delete, vm::consumeScroll)
 }
 
 @Composable
-fun RecordsScreen(state: RecordsUiState, onQuery: (String) -> Unit, onToggle: (Long) -> Unit, onDelete: (Long) -> Unit) {
+fun RecordsScreen(
+    state: RecordsUiState,
+    onQuery: (String) -> Unit,
+    onToggle: (Long) -> Unit,
+    onDelete: (Long) -> Unit,
+    onScrolled: () -> Unit = {},
+) {
     var toDelete by remember { mutableStateOf<ReceiptWithItems?>(null) }
+    val listState = rememberLazyListState()
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    // Scroll até ao recibo pedido, assim que a lista já o tiver.
+    LaunchedEffect(state.scrollTo, state.groups) {
+        val id = state.scrollTo ?: return@LaunchedEffect
+        val index = RecordsViewModel.indexOf(state.groups, id)
+        if (index != null) {
+            listState.animateScrollToItem(index)
+            onScrolled()
+        } else if (!state.loading) {
+            onScrolled() // o recibo já não existe (foi apagado): desiste
+        }
+    }
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        state = listState,
+        contentPadding = ScreenPadding,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         item {
             ScreenTitle(
                 stringResource(R.string.records_title),

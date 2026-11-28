@@ -26,6 +26,15 @@ interface ReceiptDao {
     @Query("SELECT * FROM receipts")
     fun observeReceipts(): Flow<List<ReceiptEntity>>
 
+    /** Cada recibo com o nº de produtos: um ponto no gráfico das estatísticas. */
+    @Query(
+        """SELECT r.id AS id, r.storeName AS storeName, r.purchasedOn AS purchasedOn,
+                  r.totalCents AS totalCents, COUNT(i.id) AS itemCount
+           FROM receipts r LEFT JOIN receipt_items i ON i.receiptId = r.id
+           GROUP BY r.id""",
+    )
+    fun observeReceiptSummaries(): Flow<List<ReceiptSummaryRow>>
+
     @Query(
         """SELECT i.receiptId AS receiptId, r.purchasedOn AS purchasedOn, i.name AS name,
                   i.normalizedName AS normalizedName, i.quantity AS quantity, i.totalCents AS totalCents
@@ -77,6 +86,9 @@ interface RecipeDao {
     @Query("SELECT COUNT(*) FROM recipes")
     suspend fun count(): Int
 
+    @Query("SELECT name FROM recipes")
+    suspend fun names(): List<String>
+
     @Insert suspend fun insertRecipe(recipe: RecipeEntity): Long
     @Insert suspend fun insertIngredients(items: List<RecipeIngredientEntity>)
 
@@ -103,4 +115,7 @@ interface ShoppingDao {
 
     @Query("DELETE FROM shopping_items WHERE checked = 1")
     suspend fun deleteChecked()
+
+    @Query("DELETE FROM shopping_items WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

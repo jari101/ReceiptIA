@@ -80,8 +80,8 @@ class RecipesViewModel(private val container: AppContainer) : ViewModel() {
             val available = pantry.filter { !it.expiresOn.isBefore(today) }.map { it.name }
             val byId = recipes.associateBy { it.recipe.id }
             var matches = RecipeMatcher.match(recipes.map { it.toInfo() }, available, mealType, diets)
-            // "O que posso cozinhar?": só receitas com pelo menos metade dos ingredientes em casa.
-            matches = if (cookMode) matches.filter { it.coverage >= 0.5f } else matches.sortedBy { it.recipe.name }
+            // "O que posso cozinhar?": só receitas com pelo menos metade dos ingredientes OBRIGATÓRIOS em casa.
+            matches = if (cookMode) matches.filter { it.requiredCoverage >= 0.5f } else matches.sortedBy { it.recipe.name }
             return RecipesUiState(
                 loading = false,
                 recipes = matches.map { m ->

@@ -1,5 +1,6 @@
 package pt.receiptai.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -55,6 +56,15 @@ data class PurchaseRow(
     val totalCents: Long,
 )
 
+/** Um recibo com o nº de produtos (usado no gráfico das estatísticas). */
+data class ReceiptSummaryRow(
+    val id: Long,
+    val storeName: String,
+    val purchasedOn: LocalDate,
+    val totalCents: Long,
+    val itemCount: Int,
+)
+
 /** Um ingrediente/produto que está em casa, com a data de validade. */
 @Entity(tableName = "pantry_items", indices = [Index("expiresOn")])
 data class PantryItemEntity(
@@ -90,6 +100,11 @@ data class RecipeIngredientEntity(
     val recipeId: Long = 0,
     val name: String,
     val amount: String,
+    /**
+     * true = a receita faz-se mesmo sem este ingrediente (ex.: o queijo na omelete).
+     * Coluna nova na versão 2 da base de dados; nas linhas antigas fica 0 (falso).
+     */
+    @ColumnInfo(defaultValue = "0") val optional: Boolean = false,
 )
 
 data class RecipeWithIngredients(
